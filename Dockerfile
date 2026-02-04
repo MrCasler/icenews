@@ -20,7 +20,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy application code
 COPY app/ app/
-COPY scrapfly-scrapers/ scrapfly-scrapers/
+# Note: scrapfly-scrapers is not needed for production deployment
+# (it's a dev dependency for scraper development)
 
 # Create data directory for SQLite DB
 RUN mkdir -p /data

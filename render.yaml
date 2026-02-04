@@ -1,5 +1,5 @@
 # Render.com deployment configuration for ICENews
-# Minimal setup - just the web app, no analytics
+# Includes self-hosted Umami analytics
 
 services:
   # Main ICENews web app
@@ -30,3 +30,33 @@ services:
       # Ingestion settings
       - key: ICENEWS_MAX_TWEETS_PER_ACCOUNT
         value: "4"
+      
+      # Umami Analytics (self-hosted)
+      - key: UMAMI_WEBSITE_ID
+        sync: false
+      - key: UMAMI_SCRIPT_URL
+        value: https://icenews-umami.onrender.com/script.js
+
+  # Self-hosted Umami analytics
+  - type: web
+    name: icenews-umami
+    env: docker
+    repo: https://github.com/umami-software/umami.git
+    branch: master
+    plan: free
+    envVars:
+      - key: DATABASE_TYPE
+        value: postgresql
+      - key: DATABASE_URL
+        fromDatabase:
+          name: icenews-umami-db
+          property: connectionString
+      - key: HASH_SALT
+        generateValue: true
+
+databases:
+  # PostgreSQL database for Umami analytics
+  - name: icenews-umami-db
+    plan: free
+    databaseName: icenews_umami
+    user: icenews_umami
