@@ -1,9 +1,15 @@
 """Database utilities for ICENews web app."""
+import os
 import sqlite3
 from pathlib import Path
 from typing import Optional
 
-DB_PATH = Path(__file__).resolve().parent.parent / "icenews_social.db"
+# Use /tmp for SQLite on Render (ephemeral but writable)
+# Use local path for development
+if os.getenv("RENDER"):
+    DB_PATH = Path("/tmp/icenews_social.db")
+else:
+    DB_PATH = Path(__file__).resolve().parent.parent / "icenews_social.db"
 
 def _clamp_int(value: int, *, minimum: int, maximum: int) -> int:
     """
