@@ -1,0 +1,6 @@
+/* ICENews – Tailwind is loaded via CDN; add any custom overrides here */
+@layer base {
+  body {
+    @apply antialiased;
+  }
+}

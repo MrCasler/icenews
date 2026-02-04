@@ -1,0 +1,1 @@
+# ICENews test suite

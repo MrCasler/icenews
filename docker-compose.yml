@@ -1,0 +1,56 @@
+# ICENews Docker Compose
+# Services: web (FastAPI), scheduler (ingestion every 6 hours), caddy (HTTPS + auth)
+
+services:
+  web:
+    build: .
+    container_name: icenews-web
+    restart: unless-stopped
+    environment:
+      # Umami (leave empty to disable)
+      - UMAMI_WEBSITE_ID=${UMAMI_WEBSITE_ID:-}
+      - UMAMI_SCRIPT_URL=${UMAMI_SCRIPT_URL:-https://cloud.umami.is/script.js}
+    volumes:
+      # Persist SQLite database
+      - ./data:/data
+      - ./icenews_social.db:/app/icenews_social.db
+    expose:
+      - "8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/accounts')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  scheduler:
+    build: .
+    container_name: icenews-scheduler
+    restart: unless-stopped
+    environment:
+      - SCRAPFLY_KEY=${SCRAPFLY_KEY}
+      - SCRAPFLY_USE_TEST=${SCRAPFLY_USE_TEST:-0}
+      - SCRAPFLY_TEST_KEY=${SCRAPFLY_TEST_KEY:-}
+      - ICENEWS_MAX_TWEETS_PER_ACCOUNT=${ICENEWS_MAX_TWEETS_PER_ACCOUNT:-4}
+    volumes:
+      - ./icenews_social.db:/app/icenews_social.db
+      - ./scrapfly-scrapers:/app/scrapfly-scrapers
+    # Run scheduler daemon: ingests every 6 hours (21600 seconds)
+    command: ["python", "-m", "app.scheduler", "--daemon", "--interval", "21600"]
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: icenews-caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - web
+
+volumes:
+  caddy_data:
+  caddy_config:

@@ -1,0 +1,43 @@
+-- Create the SQLite database schema for accounts and posts
+
+CREATE TABLE accounts (
+    account_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    platform TEXT NOT NULL,
+    handle TEXT NOT NULL,
+    display_name TEXT NOT NULL,
+    category TEXT CHECK (category IN ('government', 'independent','unknown', 'other')),
+    role TEXT,
+    is_enabled BOOLEAN NOT NULL DEFAULT 1,
+    verification_url TEXT,
+    notes TEXT,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE posts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    platform TEXT NOT NULL,
+    post_id TEXT NOT NULL UNIQUE,
+    url TEXT NOT NULL UNIQUE,
+    tagged_account_handle TEXT,
+    tagged_hashtags TEXT,
+    language TEXT,
+    author_handle TEXT NOT NULL,
+    author_display_name TEXT NOT NULL,
+    category TEXT NOT NULL, -- Derived from whitelist
+    text TEXT NOT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    retrieved_at DATETIME,
+    media_json TEXT,
+    metrics_json TEXT,
+    raw_json TEXT,
+    account_id INTEGER,
+    FOREIGN KEY (account_id) REFERENCES accounts (account_id) ON DELETE CASCADE
+);
+
+-- Global likes (no user identity stored)
+CREATE TABLE post_likes (
+    post_id TEXT PRIMARY KEY, -- matches posts.post_id
+    like_count INTEGER NOT NULL DEFAULT 0,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);

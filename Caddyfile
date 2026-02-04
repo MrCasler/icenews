@@ -1,0 +1,39 @@
+# ICENews Caddy configuration
+# - HTTPS automatic via Let's Encrypt
+# - Basic auth (optional - uncomment to enable)
+# - Security headers
+
+# Replace "icenews.eu" with your actual domain
+icenews.eu {
+    # ─────────────────────────────────────────────────────────────────────────
+    # Basic auth (optional)
+    # To enable:
+    # 1. Generate hash: docker run --rm caddy caddy hash-password --plaintext "yourpassword"
+    # 2. Uncomment and replace the hash below
+    # ─────────────────────────────────────────────────────────────────────────
+    # basicauth /* {
+    #     reader $2a$14$REPLACE_WITH_HASHED_PASSWORD
+    # }
+
+    # Proxy to FastAPI app
+    reverse_proxy web:8000
+
+    # Security headers
+    header {
+        X-Content-Type-Options nosniff
+        X-Frame-Options DENY
+        Referrer-Policy strict-origin-when-cross-origin
+        -Server
+    }
+
+    # Enable compression
+    encode gzip zstd
+
+    # Logging
+    log {
+        output file /data/access.log {
+            roll_size 10mb
+            roll_keep 5
+        }
+    }
+}
