@@ -245,6 +245,46 @@ async def health_check():
         raise HTTPException(status_code=503, detail="Database unavailable")
 
 
+@app.post("/api/admin/import")
+async def import_database(request: Request):
+    """
+    One-time import endpoint. Import your data, then remove this endpoint.
+    
+    POST with JSON: {"sql": "INSERT INTO ..."}
+    """
+    try:
+        data = await request.json()
+        sql = data.get("sql", "")
+        
+        if not sql:
+            raise HTTPException(status_code=400, detail="No SQL provided")
+        
+        conn = get_connection()
+        cur = conn.cursor()
+        
+        # Execute the SQL (be careful - this runs arbitrary SQL!)
+        cur.executescript(sql)
+        
+        conn.commit()
+        
+        # Count results
+        cur.execute("SELECT COUNT(*) FROM accounts")
+        accounts = cur.fetchone()[0]
+        cur.execute("SELECT COUNT(*) FROM posts")
+        posts = cur.fetchone()[0]
+        
+        conn.close()
+        
+        return {
+            "status": "success",
+            "accounts": accounts,
+            "posts": posts,
+            "message": "Import complete! Now remove this endpoint from code."
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 if __name__ == "__main__":
     import uvicorn
 
