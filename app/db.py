@@ -37,12 +37,59 @@ def get_connection():
 def init_db() -> None:
     """
     Initialize/upgrade the DB schema needed by the web app.
-
-    Note: ingestion may create the core tables; this adds newer tables in a
-    migration-like way without storing any user identity.
+    
+    Creates all required tables if they don't exist.
+    Safe to run multiple times (uses CREATE TABLE IF NOT EXISTS).
     """
     conn = get_connection()
     cur = conn.cursor()
+    
+    # Create accounts table
+    cur.execute(
+        """
+        CREATE TABLE IF NOT EXISTS accounts (
+            account_id INTEGER PRIMARY KEY AUTOINCREMENT,
+            platform TEXT NOT NULL,
+            handle TEXT NOT NULL,
+            display_name TEXT NOT NULL,
+            category TEXT CHECK (category IN ('government', 'independent','unknown', 'other')),
+            role TEXT,
+            is_enabled BOOLEAN NOT NULL DEFAULT 1,
+            verification_url TEXT,
+            notes TEXT,
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+        );
+        """
+    )
+    
+    # Create posts table
+    cur.execute(
+        """
+        CREATE TABLE IF NOT EXISTS posts (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            platform TEXT NOT NULL,
+            post_id TEXT NOT NULL UNIQUE,
+            url TEXT NOT NULL UNIQUE,
+            tagged_account_handle TEXT,
+            tagged_hashtags TEXT,
+            language TEXT,
+            author_handle TEXT NOT NULL,
+            author_display_name TEXT NOT NULL,
+            category TEXT NOT NULL,
+            text TEXT NOT NULL,
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            retrieved_at DATETIME,
+            media_json TEXT,
+            metrics_json TEXT,
+            raw_json TEXT,
+            account_id INTEGER,
+            FOREIGN KEY (account_id) REFERENCES accounts (account_id) ON DELETE CASCADE
+        );
+        """
+    )
+    
+    # Create post_likes table (for global like counts)
     cur.execute(
         """
         CREATE TABLE IF NOT EXISTS post_likes (
@@ -52,6 +99,7 @@ def init_db() -> None:
         );
         """
     )
+    
     conn.commit()
     conn.close()
 
