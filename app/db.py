@@ -84,6 +84,8 @@ def init_db() -> None:
             metrics_json TEXT,
             raw_json TEXT,
             account_id INTEGER,
+            reply_to_post_id TEXT,
+            quoted_post_id TEXT,
             FOREIGN KEY (account_id) REFERENCES accounts (account_id) ON DELETE CASCADE
         );
         """
