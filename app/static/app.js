@@ -56,6 +56,7 @@ function iceNews() {
     loading: false,
     likes: _safeLoadLikes(),
     toast: { show: false, message: "" },
+    isPremium: false, // Set by server via x-init
 
     init() {
       _icenewsLog("init() called");
@@ -244,6 +245,63 @@ function iceNews() {
       setTimeout(() => {
         this.toast.show = false;
       }, 2500);
+    },
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // Download functionality (premium feature)
+    // ──────────────────────────────────────────────────────────────────────────
+    async downloadPost(post) {
+      _icenewsLog("downloadPost()", { post_id: post?.post_id, isPremium: this.isPremium });
+      
+      if (!post || !post.post_id) return;
+      
+      if (!this.isPremium) {
+        this.showToast("Download feature requires premium access");
+        return;
+      }
+      
+      this.trackEvent("download_attempt", { post_id: post.post_id, author: post.author_handle });
+      
+      try {
+        const resp = await fetch(`/api/posts/${encodeURIComponent(post.post_id)}/download`, {
+          method: "GET",
+          headers: { Accept: "*/*" },
+        });
+        
+        if (!resp.ok) {
+          const errorData = await resp.json().catch(() => ({}));
+          throw new Error(errorData.detail || `HTTP ${resp.status}`);
+        }
+        
+        // Get filename from Content-Disposition header or generate one
+        const contentDisposition = resp.headers.get("Content-Disposition");
+        let filename = "download";
+        if (contentDisposition) {
+          const matches = /filename="?([^"]+)"?/.exec(contentDisposition);
+          if (matches && matches[1]) {
+            filename = matches[1];
+          }
+        }
+        
+        // Download the file
+        const blob = await resp.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+        
+        this.showToast("Download started!");
+        this.trackEvent("download_success", { post_id: post.post_id, author: post.author_handle });
+        
+      } catch (e) {
+        _icenewsLog("downloadPost failed", { error: e?.message || String(e) });
+        this.showToast(e.message || "Download failed");
+        this.trackEvent("download_failed", { post_id: post.post_id, error: e.message });
+      }
     },
 
     // ──────────────────────────────────────────────────────────────────────────

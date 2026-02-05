@@ -8,6 +8,8 @@ services:
     env: python
     buildCommand: |
       pip install -r requirements.txt
+      curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o /opt/render/project/.venv/bin/yt-dlp
+      chmod a+rx /opt/render/project/.venv/bin/yt-dlp
     startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
     plan: free
     envVars:

@@ -4,10 +4,12 @@ import sqlite3
 from pathlib import Path
 from typing import Optional
 
-# Use /tmp for SQLite on Render (ephemeral but writable)
-# Use local path for development
+# Use project directory for SQLite (works on Render free tier)
+# On Render, /opt/render/project/src is the only persistent location on free tier
+# Local development uses project root
 if os.getenv("RENDER"):
-    DB_PATH = Path("/tmp/icenews_social.db")
+    # Render project source directory (persists across deploys, free tier compatible)
+    DB_PATH = Path("/opt/render/project/src/icenews_social.db")
 else:
     DB_PATH = Path(__file__).resolve().parent.parent / "icenews_social.db"
 
@@ -98,6 +100,20 @@ def init_db() -> None:
             post_id TEXT PRIMARY KEY,
             like_count INTEGER NOT NULL DEFAULT 0,
             updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+        );
+        """
+    )
+    
+    # Create premium_users table (for paywall access)
+    cur.execute(
+        """
+        CREATE TABLE IF NOT EXISTS premium_users (
+            email TEXT PRIMARY KEY,
+            is_active BOOLEAN NOT NULL DEFAULT 1,
+            subscription_tier TEXT DEFAULT 'premium',
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            expires_at DATETIME,
+            notes TEXT
         );
         """
     )
@@ -254,3 +270,68 @@ def get_post_count(category: Optional[str] = None, account_id: Optional[int] = N
     n = cur.fetchone()[0]
     conn.close()
     return n
+
+
+def is_premium_user(email: str) -> bool:
+    """Check if a user has active premium access."""
+    if not email:
+        return False
+    
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute(
+        """
+        SELECT is_active, expires_at 
+        FROM premium_users 
+        WHERE email = ?
+        """,
+        (email.lower().strip(),)
+    )
+    row = cur.fetchone()
+    conn.close()
+    
+    if not row:
+        return False
+    
+    is_active = bool(row[0])
+    expires_at = row[1]
+    
+    # Check if active
+    if not is_active:
+        return False
+    
+    # Check expiration (if set)
+    if expires_at:
+        from datetime import datetime
+        try:
+            expiry = datetime.fromisoformat(expires_at)
+            if datetime.now() > expiry:
+                return False
+        except (ValueError, TypeError):
+            pass  # No expiry or invalid format, treat as active
+    
+    return True
+
+
+def add_premium_user(email: str, subscription_tier: str = "premium", expires_at: Optional[str] = None) -> bool:
+    """Add a user to premium access list."""
+    conn = get_connection()
+    cur = conn.cursor()
+    try:
+        cur.execute(
+            """
+            INSERT INTO premium_users (email, is_active, subscription_tier, expires_at)
+            VALUES (?, 1, ?, ?)
+            ON CONFLICT(email) DO UPDATE SET
+                is_active = 1,
+                subscription_tier = excluded.subscription_tier,
+                expires_at = excluded.expires_at
+            """,
+            (email.lower().strip(), subscription_tier, expires_at)
+        )
+        conn.commit()
+        conn.close()
+        return True
+    except Exception:
+        conn.close()
+        return False

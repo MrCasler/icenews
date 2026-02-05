@@ -5,12 +5,24 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import Depends, FastAPI, HTTPException, Query, Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
-from app.db import get_accounts, get_connection, get_post_by_post_id, get_post_count, get_posts, init_db, like_post, unlike_post
+from app.db import (
+    add_premium_user,
+    get_accounts,
+    get_connection,
+    get_post_by_post_id,
+    get_post_count,
+    get_posts,
+    init_db,
+    is_premium_user,
+    like_post,
+    unlike_post,
+)
+from app.downloads import check_yt_dlp_available, download_x_content
 from app.models import AccountOut, LikeUpdateOut, PostListResponse, PostOut
 
 
@@ -61,11 +73,16 @@ async def get_optional_auth():
 async def verify_auth(
     request: Request,
     auth_security = Depends(get_optional_auth)
-) -> bool:
+) -> dict:
     """
-    Verify HTTP Basic Auth credentials.
+    Verify HTTP Basic Auth credentials and check premium status.
     
-    If AUTH_ENABLED is False (no credentials in .env), this always returns True.
+    Returns a dict with authentication info:
+    - authenticated: bool (always True if no exception raised)
+    - email: str or None (user's email if authenticated)
+    - is_premium: bool (whether user has premium access)
+    
+    If AUTH_ENABLED is False (no credentials in .env), returns guest access.
     If AUTH_ENABLED is True, verifies the provided credentials match .env values.
     
     Security notes:
@@ -74,7 +91,7 @@ async def verify_auth(
     - /health endpoint should bypass this dependency
     """
     if not AUTH_ENABLED:
-        return True
+        return {"authenticated": True, "email": None, "is_premium": False}
     
     # Auth is enabled, so we need to check credentials
     # Extract credentials from Authorization header
@@ -118,7 +135,16 @@ async def verify_auth(
             detail="Invalid credentials",
             headers={"WWW-Authenticate": "Basic"},
         )
-    return True
+    
+    # Check premium status
+    user_email = username
+    premium_status = is_premium_user(user_email)
+    
+    return {
+        "authenticated": True,
+        "email": user_email,
+        "is_premium": premium_status
+    }
 
 
 def _posts_to_json(posts: list) -> str:
@@ -128,7 +154,7 @@ def _posts_to_json(posts: list) -> str:
 
 
 @app.get("/", response_class=HTMLResponse)
-async def home(request: Request, authenticated: bool = Depends(verify_auth)):
+async def home(request: Request, auth_info: dict = Depends(verify_auth)):
     """Homepage: dashboard with recent posts."""
     import time
     posts = get_posts(limit=50)
@@ -143,6 +169,9 @@ async def home(request: Request, authenticated: bool = Depends(verify_auth)):
             "posts_json": posts_json,
             "total_posts": total,
             "accounts": accounts,
+            # User auth and premium status
+            "is_premium": auth_info.get("is_premium", False),
+            "user_email": auth_info.get("email"),
             # Umami analytics (empty string = disabled in template)
             "umami_website_id": UMAMI_WEBSITE_ID,
             "umami_script_url": UMAMI_SCRIPT_URL,
@@ -163,7 +192,7 @@ async def api_posts(
     offset: int = Query(default=0, ge=0),
     category: str | None = None,
     account_id: int | None = Query(default=None, ge=1, le=10_000_000),
-    authenticated: bool = Depends(verify_auth),
+    auth_info: dict = Depends(verify_auth),
 ):
     """JSON API for posts (for Alpine.js / fetch)."""
     # Soft caps (defense-in-depth; DB layer also clamps).
@@ -182,14 +211,14 @@ async def api_posts(
 
 
 @app.get("/api/accounts")
-async def api_accounts(authenticated: bool = Depends(verify_auth)):
+async def api_accounts(auth_info: dict = Depends(verify_auth)):
     """JSON API for accounts."""
     accounts = get_accounts()
     return [AccountOut(**a) for a in accounts]
 
 
 @app.post("/api/posts/{post_id}/like", response_model=LikeUpdateOut)
-async def api_like_post(post_id: str, authenticated: bool = Depends(verify_auth)):
+async def api_like_post(post_id: str, auth_info: dict = Depends(verify_auth)):
     """
     Increment the global like count for a post.
     
@@ -208,7 +237,7 @@ async def api_like_post(post_id: str, authenticated: bool = Depends(verify_auth)
 
 
 @app.post("/api/posts/{post_id}/unlike", response_model=LikeUpdateOut)
-async def api_unlike_post(post_id: str, authenticated: bool = Depends(verify_auth)):
+async def api_unlike_post(post_id: str, auth_info: dict = Depends(verify_auth)):
     """
     Decrement the global like count for a post (floored at 0).
     
@@ -243,6 +272,94 @@ async def health_check():
         return {"status": "healthy", "posts": count}
     except Exception as e:
         raise HTTPException(status_code=503, detail="Database unavailable")
+
+
+@app.get("/api/posts/{post_id}/download")
+async def download_post_media(post_id: str, auth_info: dict = Depends(verify_auth)):
+    """
+    Download media from a post (X/Twitter).
+    
+    Premium feature - requires premium user access.
+    """
+    # Check premium status
+    if not auth_info.get("is_premium", False):
+        raise HTTPException(
+            status_code=403,
+            detail="Download feature requires premium access. Contact admin to upgrade your account."
+        )
+    
+    # Check if yt-dlp is available
+    if not check_yt_dlp_available():
+        raise HTTPException(
+            status_code=503,
+            detail="Download service temporarily unavailable (yt-dlp not installed)"
+        )
+    
+    # Get post details
+    post = get_post_by_post_id(post_id)
+    if not post:
+        raise HTTPException(status_code=404, detail="Post not found")
+    
+    url = post.get("url")
+    if not url:
+        raise HTTPException(status_code=400, detail="Post has no URL")
+    
+    # Validate it's an X/Twitter URL
+    if not any(domain in url.lower() for domain in ['twitter.com', 'x.com']):
+        raise HTTPException(status_code=400, detail="Only X/Twitter downloads are supported")
+    
+    # Download the content
+    success, message, file_path = download_x_content(url)
+    
+    if not success or not file_path:
+        raise HTTPException(status_code=500, detail=f"Download failed: {message}")
+    
+    # Return the file
+    import mimetypes
+    media_type = mimetypes.guess_type(str(file_path))[0] or "application/octet-stream"
+    
+    return FileResponse(
+        path=str(file_path),
+        media_type=media_type,
+        filename=file_path.name,
+        headers={
+            "Content-Disposition": f'attachment; filename="{file_path.name}"'
+        }
+    )
+
+
+@app.post("/api/admin/premium/add")
+async def add_premium_access(request: Request, auth_info: dict = Depends(verify_auth)):
+    """
+    Admin endpoint to grant premium access to a user.
+    
+    POST with JSON: {"email": "user@example.com", "expires_at": "2026-12-31T23:59:59"}
+    
+    Security: Should be protected by admin-only auth in production.
+    """
+    try:
+        data = await request.json()
+        email = data.get("email", "").strip()
+        expires_at = data.get("expires_at")  # Optional ISO datetime string
+        
+        if not email:
+            raise HTTPException(status_code=400, detail="Email is required")
+        
+        success = add_premium_user(email, expires_at=expires_at)
+        
+        if success:
+            return {
+                "status": "success",
+                "message": f"Premium access granted to {email}",
+                "expires_at": expires_at or "never"
+            }
+        else:
+            raise HTTPException(status_code=500, detail="Failed to add premium user")
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.post("/api/admin/import")

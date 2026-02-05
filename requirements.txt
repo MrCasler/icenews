@@ -15,3 +15,6 @@ pydantic>=2.0.0
 pytest>=7.0.0
 httpx>=0.25.0
 requests>=2.31.0
+
+# Download feature (premium)
+yt-dlp>=2024.0.0
