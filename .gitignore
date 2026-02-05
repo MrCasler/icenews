@@ -13,6 +13,9 @@ __pycache__/
 venv/
 .venv/
 
+Dockerfile
+docker-compose.yml
+Dockerfile.local
 # Local cloned repos / vendor
 scrapfly-scrapers/
 

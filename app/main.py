@@ -405,6 +405,89 @@ async def import_database(request: Request):
         # #region agent log
         try:
             with open('/Users/casler/Desktop/casler biz/personal projects/icenews/.cursor/debug.log', 'a') as f:
+                f.write(json.dumps({"location":"main.py:import_database:before_drop","message":"Dropping existing tables","data":{},"timestamp":int(time.time()*1000),"sessionId":"debug-session","hypothesisId":"H2"}) + '\n')
+        except: pass
+        # #endregion
+        
+        # Drop all existing tables to start fresh
+        cur.execute("DROP TABLE IF EXISTS post_likes")
+        cur.execute("DROP TABLE IF EXISTS posts")
+        cur.execute("DROP TABLE IF EXISTS accounts")
+        cur.execute("DROP TABLE IF EXISTS premium_users")
+        conn.commit()
+        
+        # #region agent log
+        try:
+            with open('/Users/casler/Desktop/casler biz/personal projects/icenews/.cursor/debug.log', 'a') as f:
+                f.write(json.dumps({"location":"main.py:import_database:after_drop","message":"Tables dropped, recreating schema","data":{},"timestamp":int(time.time()*1000),"sessionId":"debug-session","hypothesisId":"H2"}) + '\n')
+        except: pass
+        # #endregion
+        
+        # Recreate the schema
+        from app.db import init_db as recreate_schema
+        # We can't call init_db() directly because it tries to get a connection
+        # Instead, we'll create tables manually
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS accounts (
+                account_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                platform TEXT NOT NULL,
+                handle TEXT NOT NULL,
+                display_name TEXT NOT NULL,
+                category TEXT CHECK (category IN ('government', 'independent','unknown', 'other')),
+                role TEXT,
+                is_enabled BOOLEAN NOT NULL DEFAULT 1,
+                verification_url TEXT,
+                notes TEXT,
+                created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS posts (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                platform TEXT NOT NULL,
+                post_id TEXT NOT NULL UNIQUE,
+                url TEXT NOT NULL UNIQUE,
+                tagged_account_handle TEXT,
+                tagged_hashtags TEXT,
+                language TEXT,
+                author_handle TEXT NOT NULL,
+                author_display_name TEXT NOT NULL,
+                category TEXT NOT NULL,
+                text TEXT NOT NULL,
+                created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                retrieved_at DATETIME,
+                media_json TEXT,
+                metrics_json TEXT,
+                raw_json TEXT,
+                account_id INTEGER,
+                reply_to_post_id TEXT,
+                quoted_post_id TEXT,
+                FOREIGN KEY (account_id) REFERENCES accounts (account_id) ON DELETE CASCADE
+            )
+        """)
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS post_likes (
+                post_id TEXT PRIMARY KEY,
+                like_count INTEGER NOT NULL DEFAULT 0,
+                updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS premium_users (
+                email TEXT PRIMARY KEY,
+                is_active BOOLEAN NOT NULL DEFAULT 1,
+                subscription_tier TEXT DEFAULT 'premium',
+                created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                expires_at DATETIME,
+                notes TEXT
+            )
+        """)
+        conn.commit()
+        
+        # #region agent log
+        try:
+            with open('/Users/casler/Desktop/casler biz/personal projects/icenews/.cursor/debug.log', 'a') as f:
                 f.write(json.dumps({"location":"main.py:import_database:before_executescript","message":"About to execute SQL","data":{"connection_open":True},"timestamp":int(time.time()*1000),"sessionId":"debug-session","hypothesisId":"H2"}) + '\n')
         except: pass
         # #endregion
