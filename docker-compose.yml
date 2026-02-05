@@ -11,9 +11,8 @@ services:
       - UMAMI_WEBSITE_ID=${UMAMI_WEBSITE_ID:-}
       - UMAMI_SCRIPT_URL=${UMAMI_SCRIPT_URL:-https://cloud.umami.is/script.js}
     volumes:
-      # Persist SQLite database
-      - ./data:/data
-      - ./icenews_social.db:/app/icenews_social.db
+      # Persist SQLite database (mount project root as writable)
+      - .:/app
     expose:
       - "8000"
     healthcheck:
