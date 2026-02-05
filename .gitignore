@@ -13,9 +13,10 @@ __pycache__/
 venv/
 .venv/
 
+# Ignore main Dockerfile so Render uses native Python (not Docker)
+# Dockerfile.local is kept for local docker-compose development
 Dockerfile
 docker-compose.yml
-Dockerfile.local
 # Local cloned repos / vendor
 scrapfly-scrapers/
 
