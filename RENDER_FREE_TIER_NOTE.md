@@ -4,6 +4,8 @@
 
 The solution works perfectly on **Render's free tier** - no paid features needed!
 
+**Important:** Uses **native Python runtime** (not Docker) for better persistence on free tier.
+
 ## How It Works
 
 ### The Problem:

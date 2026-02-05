@@ -87,13 +87,14 @@ git push origin main
 ### Step 2: Wait for Render Deployment
 
 Render will automatically:
-- Deploy new code
+- Deploy new code (native Python, not Docker)
 - Store database in project directory (free tier compatible!)
 - Install yt-dlp from requirements.txt
 
 Check deployment status at: https://dashboard.render.com
 
 **Note:** This works on the **free tier** - no paid features required!
+**Important:** Uses native Python runtime for better persistence (not Docker).
 
 ### Step 3: Import Data (One Final Time)
 
@@ -122,7 +123,8 @@ curl -X POST https://icenews.eu/api/admin/premium/add \
 **Option C: Direct database (if needed)**
 ```bash
 # In Render dashboard → Shell
-sqlite3 /opt/render/project/src/icenews_social.db "
+cd /opt/render/project/src
+sqlite3 icenews_social.db "
   INSERT INTO premium_users (email, is_active)
   VALUES ('abedrodriguez3@gmail.com', 1);
 "

@@ -4,13 +4,17 @@ import sqlite3
 from pathlib import Path
 from typing import Optional
 
-# Use project directory for SQLite (works on Render free tier)
-# On Render, /opt/render/project/src is the only persistent location on free tier
-# Local development uses project root
+# Database path configuration
+# For Render (native Python): Use /opt/render/project/src (project directory)
+# For local development: Use project root
 if os.getenv("RENDER"):
-    # Render project source directory (persists across deploys, free tier compatible)
+    # Render native Python environment - project source directory persists
+    # across restarts (not across complete re-deploys)
     DB_PATH = Path("/opt/render/project/src/icenews_social.db")
+    # Ensure directory exists and is writable
+    DB_PATH.parent.mkdir(parents=True, exist_ok=True)
 else:
+    # Local development
     DB_PATH = Path(__file__).resolve().parent.parent / "icenews_social.db"
 
 def _clamp_int(value: int, *, minimum: int, maximum: int) -> int:
