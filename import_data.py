@@ -31,4 +31,9 @@ if response.status_code == 200:
     print(response.json())
 else:
     print(f"❌ Import failed: {response.status_code}")
-    print(response.text)
+    print(f"Response text: {response.text}")
+    try:
+        error_detail = response.json()
+        print(f"Error detail: {error_detail}")
+    except:
+        pass

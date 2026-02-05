@@ -1,21 +1,33 @@
 """Database utilities for ICENews web app."""
 import os
 import sqlite3
+import sys
 from pathlib import Path
 from typing import Optional
 
 # Database path configuration
-# For Render (native Python): Use /opt/render/project/src (project directory)
-# For local development: Use project root
+# For Render: Use project root (where app/ directory is located)
+# For local development: Same approach
+# This works because Render deploys the code and runs from the project root
 if os.getenv("RENDER"):
-    # Render native Python environment - project source directory persists
-    # across restarts (not across complete re-deploys)
-    DB_PATH = Path("/opt/render/project/src/icenews_social.db")
-    # Ensure directory exists and is writable
-    DB_PATH.parent.mkdir(parents=True, exist_ok=True)
+    # Render native Python: Use current working directory which is the project root
+    # Alternative: Could use /tmp but that's ephemeral
+    # Best bet: Use the directory where the app code lives
+    DB_PATH = Path(__file__).resolve().parent.parent / "icenews_social.db"
+    print(f"[DB CONFIG] Render mode - DB path: {DB_PATH}", file=sys.stderr, flush=True)
 else:
     # Local development
     DB_PATH = Path(__file__).resolve().parent.parent / "icenews_social.db"
+
+# Ensure parent directory exists (create if needed)
+# This must happen BEFORE any connection attempts
+if not DB_PATH.parent.exists():
+    try:
+        DB_PATH.parent.mkdir(parents=True, exist_ok=True)
+        print(f"[DB CONFIG] Created directory: {DB_PATH.parent}", file=sys.stderr, flush=True)
+    except (PermissionError, OSError) as e:
+        # If we can't create the directory, log it but let the connection fail with a clear error
+        print(f"[DB CONFIG] WARNING: Could not create database directory {DB_PATH.parent}: {e}", file=sys.stderr, flush=True)
 
 def _clamp_int(value: int, *, minimum: int, maximum: int) -> int:
     """
@@ -35,8 +47,24 @@ def _clamp_int(value: int, *, minimum: int, maximum: int) -> int:
 
 def get_connection():
     """Return a connection to the SQLite database."""
+    # #region agent log
+    import json, time
+    try:
+        with open('/Users/casler/Desktop/casler biz/personal projects/icenews/.cursor/debug.log', 'a') as f:
+            f.write(json.dumps({"location":"db.py:get_connection:entry","message":"Attempting DB connection","data":{"db_path":str(DB_PATH),"path_exists":DB_PATH.exists() if hasattr(DB_PATH, 'exists') else False},"timestamp":int(time.time()*1000),"sessionId":"debug-session","hypothesisId":"H1,H3"}) + '\n')
+    except: pass
+    # #endregion
+    
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
+    
+    # #region agent log
+    try:
+        with open('/Users/casler/Desktop/casler biz/personal projects/icenews/.cursor/debug.log', 'a') as f:
+            f.write(json.dumps({"location":"db.py:get_connection:success","message":"DB connection successful","data":{"connected":True},"timestamp":int(time.time()*1000),"sessionId":"debug-session","hypothesisId":"H3"}) + '\n')
+    except: pass
+    # #endregion
+    
     return conn
 
 
@@ -47,6 +75,14 @@ def init_db() -> None:
     Creates all required tables if they don't exist.
     Safe to run multiple times (uses CREATE TABLE IF NOT EXISTS).
     """
+    # #region agent log
+    import json, time, os
+    try:
+        with open('/Users/casler/Desktop/casler biz/personal projects/icenews/.cursor/debug.log', 'a') as f:
+            f.write(json.dumps({"location":"db.py:init_db:entry","message":"Starting DB init","data":{"db_path":str(DB_PATH),"is_render":bool(os.getenv("RENDER")),"parent_exists":DB_PATH.parent.exists() if hasattr(DB_PATH.parent, 'exists') else False},"timestamp":int(time.time()*1000),"sessionId":"debug-session","hypothesisId":"H1,H5"}) + '\n')
+    except: pass
+    # #endregion
+    
     conn = get_connection()
     cur = conn.cursor()
     

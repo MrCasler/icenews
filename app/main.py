@@ -30,7 +30,15 @@ from app.models import AccountOut, LikeUpdateOut, PostListResponse, PostOut
 async def lifespan(app: FastAPI):
     """Lifespan context manager for startup/shutdown events."""
     # Startup: Initialize the database schema
+    print(f"[STARTUP] Current working directory: {os.getcwd()}", flush=True)
+    print(f"[STARTUP] DB_PATH configured as: {get_connection.__module__}", flush=True)
+    from app.db import DB_PATH
+    print(f"[STARTUP] Database path: {DB_PATH}", flush=True)
+    print(f"[STARTUP] Database path exists: {DB_PATH.exists()}", flush=True)
+    print(f"[STARTUP] Database parent exists: {DB_PATH.parent.exists()}", flush=True)
+    print(f"[STARTUP] Database parent writable: {os.access(DB_PATH.parent, os.W_OK)}", flush=True)
     init_db()
+    print(f"[STARTUP] Database initialized successfully", flush=True)
     yield
     # Shutdown: nothing to do currently
 
@@ -369,9 +377,24 @@ async def import_database(request: Request):
     
     POST with JSON: {"sql": "INSERT INTO ..."}
     """
+    # #region agent log
+    import json, time
+    try:
+        with open('/Users/casler/Desktop/casler biz/personal projects/icenews/.cursor/debug.log', 'a') as f:
+            f.write(json.dumps({"location":"main.py:import_database:entry","message":"Import endpoint called","data":{},"timestamp":int(time.time()*1000),"sessionId":"debug-session","hypothesisId":"H2,H4"}) + '\n')
+    except: pass
+    # #endregion
+    
     try:
         data = await request.json()
         sql = data.get("sql", "")
+        
+        # #region agent log
+        try:
+            with open('/Users/casler/Desktop/casler biz/personal projects/icenews/.cursor/debug.log', 'a') as f:
+                f.write(json.dumps({"location":"main.py:import_database:sql_received","message":"SQL data received","data":{"sql_length":len(sql),"has_sql":bool(sql)},"timestamp":int(time.time()*1000),"sessionId":"debug-session","hypothesisId":"H2"}) + '\n')
+        except: pass
+        # #endregion
         
         if not sql:
             raise HTTPException(status_code=400, detail="No SQL provided")
@@ -379,8 +402,22 @@ async def import_database(request: Request):
         conn = get_connection()
         cur = conn.cursor()
         
+        # #region agent log
+        try:
+            with open('/Users/casler/Desktop/casler biz/personal projects/icenews/.cursor/debug.log', 'a') as f:
+                f.write(json.dumps({"location":"main.py:import_database:before_executescript","message":"About to execute SQL","data":{"connection_open":True},"timestamp":int(time.time()*1000),"sessionId":"debug-session","hypothesisId":"H2"}) + '\n')
+        except: pass
+        # #endregion
+        
         # Execute the SQL (be careful - this runs arbitrary SQL!)
         cur.executescript(sql)
+        
+        # #region agent log
+        try:
+            with open('/Users/casler/Desktop/casler biz/personal projects/icenews/.cursor/debug.log', 'a') as f:
+                f.write(json.dumps({"location":"main.py:import_database:after_executescript","message":"SQL executed successfully","data":{},"timestamp":int(time.time()*1000),"sessionId":"debug-session","hypothesisId":"H2"}) + '\n')
+        except: pass
+        # #endregion
         
         conn.commit()
         
@@ -389,6 +426,13 @@ async def import_database(request: Request):
         accounts = cur.fetchone()[0]
         cur.execute("SELECT COUNT(*) FROM posts")
         posts = cur.fetchone()[0]
+        
+        # #region agent log
+        try:
+            with open('/Users/casler/Desktop/casler biz/personal projects/icenews/.cursor/debug.log', 'a') as f:
+                f.write(json.dumps({"location":"main.py:import_database:counts","message":"Import counts","data":{"accounts":accounts,"posts":posts},"timestamp":int(time.time()*1000),"sessionId":"debug-session","hypothesisId":"H2"}) + '\n')
+        except: pass
+        # #endregion
         
         conn.close()
         
@@ -399,6 +443,12 @@ async def import_database(request: Request):
             "message": "Import complete! Now remove this endpoint from code."
         }
     except Exception as e:
+        # #region agent log
+        try:
+            with open('/Users/casler/Desktop/casler biz/personal projects/icenews/.cursor/debug.log', 'a') as f:
+                f.write(json.dumps({"location":"main.py:import_database:error","message":"Import failed with exception","data":{"error_type":type(e).__name__,"error_msg":str(e)},"timestamp":int(time.time()*1000),"sessionId":"debug-session","hypothesisId":"H1,H2,H3,H4,H5"}) + '\n')
+        except: pass
+        # #endregion
         raise HTTPException(status_code=500, detail=str(e))
 
 
