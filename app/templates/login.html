@@ -87,6 +87,22 @@
             >
           </div>
 
+          <!-- Terms & Privacy -->
+          <label class="flex items-start gap-3 cursor-pointer group">
+            <input
+              type="checkbox"
+              x-model="agreedToTerms"
+              class="mt-1 w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+              :disabled="loading || sent"
+            >
+            <span class="text-sm text-slate-600 group-hover:text-slate-800">
+              I have read and agree to the
+              <a href="/privacy" target="_blank" rel="noopener noreferrer" class="text-indigo-600 hover:underline font-medium">Privacy Policy</a>
+              and
+              <a href="/terms" target="_blank" rel="noopener noreferrer" class="text-indigo-600 hover:underline font-medium">Terms of Service</a>.
+            </span>
+          </label>
+
           <!-- Success Message -->
           <div x-show="sent" x-transition class="p-4 bg-green-50 border border-green-200 rounded-lg">
             <div class="flex items-start gap-3">
@@ -109,8 +125,8 @@
             type="submit"
             x-show="!sent"
             class="w-full py-3 px-4 bg-slate-800 text-white font-medium rounded-lg hover:bg-slate-700 focus:ring-4 focus:ring-slate-300 transition flex items-center justify-center gap-2"
-            :class="{ 'opacity-50 cursor-wait': loading }"
-            :disabled="loading"
+            :class="{ 'opacity-50 cursor-wait': loading || !agreedToTerms }"
+            :disabled="loading || !agreedToTerms"
           >
             <span x-show="!loading">Send Magic Link</span>
             <span x-show="loading" class="flex items-center gap-2">
@@ -173,11 +189,16 @@
     function loginForm() {
       return {
         email: '',
+        agreedToTerms: false,
         loading: false,
         sent: false,
         error: '',
 
         async sendMagicLink() {
+          if (!this.agreedToTerms) {
+            this.error = 'Please confirm you have read the Privacy Policy and Terms of Service.';
+            return;
+          }
           this.error = '';
           this.loading = true;
 
@@ -206,6 +227,7 @@
           this.email = '';
           this.sent = false;
           this.error = '';
+          this.agreedToTerms = false;
         }
       };
     }

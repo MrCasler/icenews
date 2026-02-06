@@ -323,18 +323,10 @@
         <p :class="submitForm.success ? 'text-green-600' : 'text-red-600'" x-text="submitForm.message"></p>
       </div>
       {% else %}
-      <!-- Non-premium upload CTA -->
+      <!-- Non-premium upload CTA (no duplicate buy button; use the one at top with crown) -->
       <div class="bg-gradient-to-r from-rose-50 to-orange-50 border border-rose-200 rounded-xl p-5">
-        <div class="flex flex-col sm:flex-row items-center gap-4">
-          <div class="flex-1 text-center sm:text-left">
-            <p class="text-rose-800 font-semibold mb-1">Upgrade to submit footage and downloads</p>
-            <p class="text-rose-700 text-sm">Premium members can upload ICE-related content to the community gallery.</p>
-          </div>
-          <stripe-buy-button
-            buy-button-id="buy_btn_1Sxcv0C7nxdY2uAUK5e7Xnci"
-            publishable-key="pk_live_51R5IM8C7nxdY2uAU7WJGnndI0qge0jqfQ7BIN8TfGMA2NP1o9IHYbTLNBpY0I4lE3zWV0pXTDeDQAIihQwbkDnzK00Mh99IAOd"
-          ></stripe-buy-button>
-        </div>
+        <p class="text-rose-800 font-semibold mb-1">Upgrade to submit footage and downloads</p>
+        <p class="text-rose-700 text-sm">Premium members can upload ICE-related content to the community gallery. Use the <strong>Become a Premium Member</strong> button at the top of this page to upgrade.</p>
       </div>
       {% endif %}
     </div>

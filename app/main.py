@@ -44,6 +44,7 @@ from app.db import (
     is_premium_user,
     like_post,
     like_user_post,
+    unlike_user_post,
     save_download,
     unlike_post,
     update_user_nickname,
@@ -1414,6 +1415,13 @@ async def get_community_feed(
 async def like_community_post(post_id: int, auth_info: dict = Depends(verify_auth)):
     """Like a community post."""
     new_count = like_user_post(post_id)
+    return {"post_id": post_id, "like_count": new_count}
+
+
+@app.post("/api/posts/community/{post_id}/unlike")
+async def unlike_community_post(post_id: int, auth_info: dict = Depends(verify_auth)):
+    """Unlike a community post."""
+    new_count = unlike_user_post(post_id)
     return {"post_id": post_id, "like_count": new_count}
 
 

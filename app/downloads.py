@@ -128,6 +128,7 @@ def download_x_content(url: str, output_dir: Optional[Path] = None) -> tuple[boo
     cmd = [
         'yt-dlp',
         '--no-check-certificate',
+        '--no-warnings',  # avoid surfacing WARNING (e.g. WSJ impersonation) as user-facing error
         '--user-agent', 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
         '--write-thumbnail',
         '--convert-thumbnails', 'jpg',
@@ -159,6 +160,9 @@ def download_x_content(url: str, output_dir: Optional[Path] = None) -> tuple[boo
                     if ok:
                         return True, "Image downloaded (from tweet preview)", path
                 return False, "This post has images only; the downloader could not extract them. Try a post with video or paste a direct image link (right‑click image → Copy image address).", None
+            # Don't surface yt-dlp WARNING (e.g. WSJ impersonation) as the main error
+            if "WARNING" in error_msg or "impersonation" in error_msg.lower():
+                return False, "Unsupported URL or content. Try X, YouTube, TikTok, or Instagram.", None
             return False, f"Download failed: {error_msg[:200]}" if error_msg else "Download failed", None
         
         # Prioritize video/media files over small thumbnails

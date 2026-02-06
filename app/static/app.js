@@ -129,23 +129,27 @@ function iceNews() {
     },
 
     async toggleLike(post) {
-      _icenewsLog("toggleLike()", { post_id: post?.post_id });
+      _icenewsLog("toggleLike()", { post_id: post?.post_id, is_community: post?.is_community });
       if (!post || !post.post_id) return;
       const postId = post.post_id;
       const wasLiked = this.isLiked(postId);
       const endpoint = wasLiked ? "unlike" : "like";
-      
+
+      // Community posts use a different API: /api/posts/community/{id}/like (no unlike for community)
+      const isCommunity = !!post.is_community;
+      const numericId = isCommunity ? (post.id || String(postId).replace(/^community_/, "")) : null;
+
       // Optimistic update: update UI immediately
       const oldCount = post.like_count || 0;
       const newCount = wasLiked ? Math.max(0, oldCount - 1) : oldCount + 1;
       post.like_count = newCount;
-      
+
       if (wasLiked) {
         delete this.likes[postId];
       } else {
         this.likes[postId] = true;
       }
-      
+
       try {
         localStorage.setItem("icenews_likes", JSON.stringify(this.likes));
       } catch {
@@ -154,12 +158,22 @@ function iceNews() {
       
       // Track the event
       this.trackEvent(endpoint, { post_id: postId, author: post.author_handle });
-      
+
       // Sync with server (reconcile if server count differs)
+      let url;
+      if (isCommunity && numericId) {
+        // Community posts: separate like/unlike endpoints
+        url = wasLiked
+          ? `/api/posts/community/${numericId}/unlike`
+          : `/api/posts/community/${numericId}/like`;
+      } else {
+        url = `/api/posts/${encodeURIComponent(postId)}/${endpoint}`;
+      }
       try {
-        const resp = await fetch(`/api/posts/${encodeURIComponent(postId)}/${endpoint}`, {
+        const resp = await fetch(url, {
           method: "POST",
           headers: { Accept: "application/json" },
+          credentials: "same-origin",
         });
         if (!resp.ok) {
           throw new Error(`HTTP ${resp.status}`);

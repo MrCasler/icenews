@@ -942,6 +942,21 @@ def like_user_post(post_id: int) -> int:
     return int(row[0]) if row else 0
 
 
+def unlike_user_post(post_id: int) -> int:
+    """Decrement like count for a user post (floored at 0). Returns new count."""
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute(
+        "UPDATE user_posts SET like_count = CASE WHEN like_count > 0 THEN like_count - 1 ELSE 0 END WHERE id = ?",
+        (post_id,)
+    )
+    conn.commit()
+    cur.execute("SELECT like_count FROM user_posts WHERE id = ?", (post_id,))
+    row = cur.fetchone()
+    conn.close()
+    return int(row[0]) if row else 0
+
+
 # ============================================================================
 # V2: User Profile Functions
 # ============================================================================
