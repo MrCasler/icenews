@@ -7,7 +7,7 @@
 ## ✅ Issue #1: Database Persistence (FIXED)
 
 ### The Problem:
-Your database was stored in `/tmp/` on Render, which gets **wiped on every restart**. That's why you had to run `import_data.py` every time you visited the site.
+Your database was stored in `/tmp/` on Render, which gets **wiped on every restart**. That's why you had to re-import data every time you visited the site.
 
 ### The Solution:
 Now using Render's **persistent disk** feature! Your data will survive restarts.
@@ -29,8 +29,7 @@ git push
 
 # 2. Render auto-deploys with persistent disk
 
-# 3. Import your data ONE FINAL TIME
-python import_data.py database_export.sql
+# 3. Import your data: python import_accounts_posts.py path/to/export.sql (CLI only; run locally or in Render Shell)
 
 # 4. Done! Data now persists forever 🎉
 ```
@@ -98,12 +97,9 @@ Check deployment status at: https://dashboard.render.com
 
 ### Step 3: Import Data (One Final Time)
 
-```bash
-# This will populate the new persistent storage
-python import_data.py database_export.sql
-```
-
-Enter: `https://icenews.eu` when prompted
+Run from project root (locally or in Render Shell):  
+`python import_accounts_posts.py path/to/export.sql`  
+Premium users and likes are never changed.
 
 ### Step 4: Grant Yourself Premium Access
 
@@ -126,7 +122,7 @@ curl -X POST https://icenews.eu/api/admin/premium/add \
 cd /opt/render/project/src
 sqlite3 icenews_social.db "
   INSERT INTO premium_users (email, is_active)
-  VALUES ('abedrodriguez3@gmail.com', 1);
+  VALUES ('tester@gmail.com', 1);
 "
 ```
 
@@ -244,7 +240,7 @@ Body: {"email": "user@example.com", "expires_at": "2027-12-31T23:59:59"}
 - Check Render logs: deployment should install it from requirements.txt
 
 ### "Database still empty after restart"
-- Make sure you ran `import_data.py` AFTER deploying the persistent disk changes
+- Re-import with `python import_accounts_posts.py export.sql` after deploying the persistent disk changes
 - Check Render logs confirm it's using `/var/data/icenews_social.db`
 - Verify disk is mounted: Render dashboard → Environment → Disks
 
@@ -267,7 +263,7 @@ Before you're done, make sure:
 
 - [ ] Code pushed to GitHub
 - [ ] Render deployment successful
-- [ ] Ran `import_data.py` one final time
+- [ ] Imported data: `python import_accounts_posts.py export.sql` (one final time)
 - [ ] Added yourself as premium user
 - [ ] Tested download works
 - [ ] Restarted service and data persists
@@ -341,7 +337,7 @@ See `PREMIUM_FEATURE_GUIDE.md` for detailed implementation ideas!
 ---
 
 **That's it! You now have:**
-- ✅ Persistent database (no more import_data every time)
+- ✅ Persistent database (no more re-import every time)
 - ✅ Premium download feature (just like smol_skripts)
 - ✅ Paywall system (ready for monetization)
 - ✅ Complete documentation

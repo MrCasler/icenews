@@ -199,9 +199,10 @@ If you didn't request this link, you can safely ignore this email.
             resend.api_key = resend_api_key
             
             from_email = os.getenv("RESEND_FROM_EMAIL", "").strip()
-            if not from_email:
-                from_email = "onboarding@resend.dev"  # Use Resend's default for testing
-            
+            # Use Resend's default sender when unset or when domain may not be verified (e.g. localhost)
+            app_base = os.getenv("APP_BASE_URL", "").lower()
+            if not from_email or "localhost" in app_base:
+                from_email = "onboarding@resend.dev"
             print(f"[AUTH] Sending magic link email to: {email}", flush=True)
             print(f"[AUTH] From: {from_email}", flush=True)
             print(f"[AUTH] API Key prefix: {resend_api_key[:15]}...", flush=True)

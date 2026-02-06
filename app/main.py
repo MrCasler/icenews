@@ -17,6 +17,7 @@ from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse, JSON
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from starlette.middleware.sessions import SessionMiddleware
 
 from app.db import (
     add_premium_user,
@@ -50,6 +51,7 @@ from app.db import (
     update_user_nickname,
     update_user_profile,
 )
+from app.db import DB_PATH as _DB_PATH
 from app.downloads import check_yt_dlp_available, download_x_content
 
 # Optional: X (Twitter) OAuth
@@ -97,6 +99,9 @@ app = FastAPI(
     description="Social monitoring for government & independent sources",
     lifespan=lifespan
 )
+# Required for X (Twitter) OAuth: Authlib stores state in request.session
+_session_secret = os.getenv("APP_SECRET_KEY", "dev-secret-key-change-in-production")
+app.add_middleware(SessionMiddleware, secret_key=_session_secret)
 security = HTTPBasic()
 
 BASE = Path(__file__).resolve().parent
@@ -512,109 +517,30 @@ async def add_premium_access(request: Request, auth_info: dict = Depends(verify_
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.post("/api/admin/import")
-async def import_database(request: Request):
+@app.get("/api/admin/export-db")
+async def export_database(
+    request: Request,
+    secret: Optional[str] = Query(None, alias="secret"),
+):
     """
-    One-time import endpoint. Import your data, then remove this endpoint.
-    
-    POST with JSON: {"sql": "INSERT INTO ..."}
+    Stream the database file to the client (e.g. for syncing Render DB to local).
+    Requires EXPORT_SECRET in env; pass ?secret=... or header X-Export-Secret.
     """
-    try:
-        data = await request.json()
-        sql = data.get("sql", "")
-        
-        if not sql:
-            raise HTTPException(status_code=400, detail="No SQL provided")
-        
-        conn = get_connection()
-        cur = conn.cursor()
-        
-        # Drop all existing tables to start fresh
-        cur.execute("DROP TABLE IF EXISTS post_likes")
-        cur.execute("DROP TABLE IF EXISTS posts")
-        cur.execute("DROP TABLE IF EXISTS accounts")
-        cur.execute("DROP TABLE IF EXISTS premium_users")
-        conn.commit()
-        
-        # Recreate the schema
-        cur.execute("""
-            CREATE TABLE IF NOT EXISTS accounts (
-                account_id INTEGER PRIMARY KEY AUTOINCREMENT,
-                platform TEXT NOT NULL,
-                handle TEXT NOT NULL,
-                display_name TEXT NOT NULL,
-                category TEXT CHECK (category IN ('government', 'independent','unknown', 'other')),
-                role TEXT,
-                is_enabled BOOLEAN NOT NULL DEFAULT 1,
-                verification_url TEXT,
-                notes TEXT,
-                created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
-            )
-        """)
-        cur.execute("""
-            CREATE TABLE IF NOT EXISTS posts (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                platform TEXT NOT NULL,
-                post_id TEXT NOT NULL UNIQUE,
-                url TEXT NOT NULL UNIQUE,
-                tagged_account_handle TEXT,
-                tagged_hashtags TEXT,
-                language TEXT,
-                author_handle TEXT NOT NULL,
-                author_display_name TEXT NOT NULL,
-                category TEXT NOT NULL,
-                text TEXT NOT NULL,
-                created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                retrieved_at DATETIME,
-                media_json TEXT,
-                metrics_json TEXT,
-                raw_json TEXT,
-                account_id INTEGER,
-                reply_to_post_id TEXT,
-                quoted_post_id TEXT,
-                FOREIGN KEY (account_id) REFERENCES accounts (account_id) ON DELETE CASCADE
-            )
-        """)
-        cur.execute("""
-            CREATE TABLE IF NOT EXISTS post_likes (
-                post_id TEXT PRIMARY KEY,
-                like_count INTEGER NOT NULL DEFAULT 0,
-                updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
-            )
-        """)
-        cur.execute("""
-            CREATE TABLE IF NOT EXISTS premium_users (
-                email TEXT PRIMARY KEY,
-                is_active BOOLEAN NOT NULL DEFAULT 1,
-                subscription_tier TEXT DEFAULT 'premium',
-                created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                expires_at DATETIME,
-                notes TEXT
-            )
-        """)
-        conn.commit()
-        
-        # Execute the SQL (be careful - this runs arbitrary SQL!)
-        cur.executescript(sql)
-        conn.commit()
-        
-        # Count results
-        cur.execute("SELECT COUNT(*) FROM accounts")
-        accounts = cur.fetchone()[0]
-        cur.execute("SELECT COUNT(*) FROM posts")
-        posts = cur.fetchone()[0]
-        
-        conn.close()
-        
-        return {
-            "status": "success",
-            "accounts": accounts,
-            "posts": posts,
-            "message": "Import complete! Now remove this endpoint from code."
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    export_secret = os.getenv("EXPORT_SECRET", "").strip()
+    if not export_secret:
+        raise HTTPException(status_code=503, detail="Export not configured")
+    provided = (secret or request.headers.get("X-Export-Secret") or "").strip()
+    if not secrets.compare_digest(provided, export_secret):
+        raise HTTPException(status_code=403, detail="Invalid or missing export secret")
+    db_path = Path(_DB_PATH)
+    if not db_path.is_file():
+        raise HTTPException(status_code=404, detail="Database file not found")
+    return FileResponse(
+        path=str(db_path),
+        media_type="application/x-sqlite3",
+        filename=db_path.name,
+        headers={"Content-Disposition": f'attachment; filename="{db_path.name}"'},
+    )
 
 
 # ============================================================================
