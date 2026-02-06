@@ -605,10 +605,20 @@ async def send_magic_link_route(request: Request):
 @app.get("/auth/verify/{token}")
 async def verify_magic_link_route(token: str, request: Request):
     """Verify magic link token and create session."""
+    # Normalize token (strip in case of encoding/whitespace)
+    token = (token or "").strip()
     user = verify_magic_link(token)
     
     if not user:
-        # Invalid or expired token
+        # Log reason for debugging (e.g. link points to wrong server if APP_BASE_URL mismatch)
+        from app.db import get_magic_link
+        link = get_magic_link(token) if token else None
+        if not link:
+            print(f"[AUTH] Magic link failed: token not found (wrong server or bad link?). APP_BASE_URL should match where you open the link.", flush=True)
+        elif link.get("used"):
+            print(f"[AUTH] Magic link failed: already used.", flush=True)
+        else:
+            print(f"[AUTH] Magic link failed: expired or invalid.", flush=True)
         return templates.TemplateResponse(
             request=request,
             name="login.html",
@@ -616,6 +626,7 @@ async def verify_magic_link_route(token: str, request: Request):
                 "error": "This link has expired or is invalid. Please request a new one.",
                 "umami_website_id": UMAMI_WEBSITE_ID,
                 "umami_script_url": UMAMI_SCRIPT_URL,
+                "x_login_enabled": _oauth is not None,
             }
         )
     
@@ -627,6 +638,7 @@ async def verify_magic_link_route(token: str, request: Request):
     response.set_cookie(
         key=SESSION_COOKIE_NAME,
         value=session_token,
+        path="/",
         httponly=True,
         secure=os.getenv("RENDER") is not None,  # Secure in production
         samesite="lax",
@@ -638,9 +650,15 @@ async def verify_magic_link_route(token: str, request: Request):
 
 @app.get("/auth/logout")
 async def logout():
-    """Clear session and redirect to home."""
+    """Clear session and redirect to home. Cookie options must match set_cookie for browser to clear it (e.g. on Render with HTTPS)."""
     response = RedirectResponse(url="/", status_code=302)
-    response.delete_cookie(SESSION_COOKIE_NAME)
+    response.delete_cookie(
+        SESSION_COOKIE_NAME,
+        path="/",
+        secure=os.getenv("RENDER") is not None,
+        httponly=True,
+        samesite="lax",
+    )
     return response
 
 
@@ -694,6 +712,7 @@ async def x_callback(request: Request):
         response.set_cookie(
             key=SESSION_COOKIE_NAME,
             value=session_token,
+            path="/",
             httponly=True,
             secure=os.getenv("RENDER") is not None,
             samesite="lax",

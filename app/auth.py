@@ -60,6 +60,9 @@ def verify_magic_link(token: str) -> Optional[dict]:
     
     Returns: User dict if valid, None if invalid/expired/used
     """
+    if not token:
+        return None
+    token = token.strip()
     # Get token from database
     link = get_magic_link(token)
     
@@ -231,8 +234,24 @@ If you didn't request this link, you can safely ignore this email.
             import traceback
             print(f"[AUTH] Failed to send email via Resend: {e}", flush=True)
             print(f"[AUTH] Traceback: {traceback.format_exc()}", flush=True)
-            
-            # Fall back to console logging in case of error
+            # If domain not verified, retry with Resend's test sender so the user still gets the email
+            err_str = str(e).lower()
+            if "domain" in err_str and ("not verified" in err_str or "verify" in err_str):
+                try:
+                    print(f"[AUTH] Retrying with onboarding@resend.dev (domain not verified)", flush=True)
+                    response = resend.Emails.send({
+                        "from": "onboarding@resend.dev",
+                        "to": email,
+                        "subject": email_subject,
+                        "html": email_html,
+                        "text": email_body,
+                    })
+                    if response and (hasattr(response, "id") or (isinstance(response, dict) and response.get("id"))):
+                        print(f"[AUTH] Sent via onboarding@resend.dev", flush=True)
+                        return True
+                except Exception as retry_e:
+                    print(f"[AUTH] Retry failed: {retry_e}", flush=True)
+            # Fall back to console logging
             print(f"\n{'='*60}")
             print(f"[FALLBACK] Magic Link Email (Resend failed)")
             print(f"To: {email}")
