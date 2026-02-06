@@ -3,10 +3,10 @@
 
 services:
   # Main ICENews web app
+  # Python version: set PYTHON_VERSION env (e.g. 3.11.0) or add .python-version in repo
   - type: web
     name: icenews
-    env: python
-    runtime: python-3.11
+    runtime: python
     buildCommand: |
       pip install -r requirements.txt
       # Install yt-dlp binary for download feature
@@ -44,7 +44,7 @@ services:
   # Self-hosted Umami analytics
   - type: web
     name: icenews-umami
-    env: docker
+    runtime: docker
     repo: https://github.com/umami-software/umami.git
     branch: master
     plan: free
