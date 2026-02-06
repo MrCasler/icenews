@@ -17,6 +17,7 @@ from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse, JSON
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from starlette.background import BackgroundTask
 from starlette.middleware.sessions import SessionMiddleware
 
 from app.db import (
@@ -46,6 +47,8 @@ from app.db import (
     like_post,
     like_user_post,
     unlike_user_post,
+    dislike_post,
+    undislike_post,
     save_download,
     unlike_post,
     update_user_nickname,
@@ -60,7 +63,7 @@ try:
     _OAUTH_AVAILABLE = True
 except ImportError:
     _OAUTH_AVAILABLE = False
-from app.models import AccountOut, LikeUpdateOut, PostListResponse, PostOut
+from app.models import AccountOut, DislikeUpdateOut, LikeUpdateOut, PostListResponse, PostOut
 from app.auth import (
     generate_magic_link,
     verify_magic_link,
@@ -120,6 +123,8 @@ AUTH_ENABLED = bool(AUTH_EMAIL) and bool(AUTH_PASSWORD)
 
 # Session cookie name
 SESSION_COOKIE_NAME = "icenews_session"
+# Optional: set to a root domain (e.g. .icenews.eu) so login cookie works on both www and non-www on Render
+COOKIE_DOMAIN = os.environ.get("COOKIE_DOMAIN", "").strip() or None
 
 # X (Twitter) OAuth - optional, enabled if authlib + X_CLIENT_ID + X_CLIENT_SECRET are set
 if _OAUTH_AVAILABLE and os.getenv("X_CLIENT_ID") and os.getenv("X_CLIENT_SECRET"):
@@ -398,6 +403,26 @@ async def api_unlike_post(post_id: str, auth_info: dict = Depends(verify_auth)):
     return LikeUpdateOut(post_id=post_id, like_count=new_count)
 
 
+@app.post("/api/posts/{post_id}/dislike", response_model=DislikeUpdateOut)
+async def api_dislike_post(post_id: str, auth_info: dict = Depends(verify_auth)):
+    """Increment the dislike count for a post (Reddit-style)."""
+    post = get_post_by_post_id(post_id)
+    if not post:
+        raise HTTPException(status_code=404, detail="Post not found")
+    new_count = dislike_post(post_id)
+    return DislikeUpdateOut(post_id=post_id, dislike_count=new_count)
+
+
+@app.post("/api/posts/{post_id}/undislike", response_model=DislikeUpdateOut)
+async def api_undislike_post(post_id: str, auth_info: dict = Depends(verify_auth)):
+    """Decrement the dislike count for a post (floored at 0)."""
+    post = get_post_by_post_id(post_id)
+    if not post:
+        raise HTTPException(status_code=404, detail="Post not found")
+    new_count = undislike_post(post_id)
+    return DislikeUpdateOut(post_id=post_id, dislike_count=new_count)
+
+
 @app.get("/health")
 async def health_check():
     """
@@ -451,7 +476,38 @@ async def download_post_media(post_id: str, auth_info: dict = Depends(verify_aut
     success, message, file_path = download_x_content(url)
     
     if not success or not file_path:
-        raise HTTPException(status_code=500, detail=f"Download failed: {message}")
+        # Fallback: if post has text, return it as a .txt download
+        post_text = (post.get("text") or "").strip()
+        author = (post.get("author_display_name") or post.get("author_handle") or "Unknown")
+        if post_text:
+            import tempfile
+            tmp = tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False, encoding="utf-8")
+            try:
+                tmp.write(f"Author: {author}\n")
+                tmp.write(f"URL: {url}\n\n")
+                tmp.write(post_text)
+                tmp.close()
+                def _cleanup_txt():
+                    Path(tmp.name).unlink(missing_ok=True)
+                return FileResponse(
+                    path=tmp.name,
+                    media_type="text/plain; charset=utf-8",
+                    filename=f"post_{post_id}.txt",
+                    headers={"Content-Disposition": f'attachment; filename="post_{post_id}.txt"'},
+                    background=BackgroundTask(_cleanup_txt),
+                )
+            except Exception:
+                try:
+                    Path(tmp.name).unlink(missing_ok=True)
+                except Exception:
+                    pass
+        # No text fallback: return appropriate error
+        is_images_only = "images only" in (message or "").lower() or "could not extract" in (message or "").lower()
+        status = 400 if is_images_only else 500
+        detail = message if message else "Download failed"
+        if status == 500:
+            detail = f"Download failed: {detail}"
+        raise HTTPException(status_code=status, detail=detail)
     
     # If user is premium and authenticated, save to their gallery
     if auth_info.get("is_premium") and auth_info.get("user_id"):
@@ -469,10 +525,34 @@ async def download_post_media(post_id: str, auth_info: dict = Depends(verify_aut
             # Don't fail the download if saving to gallery fails
             print(f"[DOWNLOAD] Failed to save to gallery: {e}", flush=True)
     
-    # Return the file
+    # When we have both media and text, return a zip with both (so "everything" is saved)
+    post_text = (post.get("text") or "").strip()
+    author = (post.get("author_display_name") or post.get("author_handle") or "Unknown")
+    if post_text:
+        import tempfile
+        import zipfile
+        zip_path = Path(tempfile.gettempdir()) / f"post_{post_id}.zip"
+        try:
+            with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
+                zf.write(file_path, file_path.name)
+                caption = f"Author: {author}\nURL: {url}\n\n{post_text}"
+                zf.writestr("caption.txt", caption.encode("utf-8"))
+            def _cleanup_zip():
+                zip_path.unlink(missing_ok=True)
+            return FileResponse(
+                path=str(zip_path),
+                media_type="application/zip",
+                filename=f"post_{post_id}.zip",
+                headers={"Content-Disposition": f'attachment; filename="post_{post_id}.zip"'},
+                background=BackgroundTask(_cleanup_zip),
+            )
+        except Exception as e:
+            zip_path.unlink(missing_ok=True)
+            # Fall through to return media only
+    
+    # Return the media file only
     import mimetypes
     media_type = mimetypes.guess_type(str(file_path))[0] or "application/octet-stream"
-    
     return FileResponse(
         path=str(file_path),
         media_type=media_type,
@@ -586,8 +666,14 @@ async def send_magic_link_route(request: Request):
         if not re.match(r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$", email):
             raise HTTPException(status_code=400, detail="Invalid email format")
         
-        # Generate magic link
-        token, magic_link_url = generate_magic_link(email)
+        # Generate magic link: on Render use public URL (APP_BASE_URL) so the link works when clicked; locally use request host (0.0.0.0 → 127.0.0.1)
+        if os.getenv("RENDER"):
+            base = (os.getenv("APP_BASE_URL") or "").strip().rstrip("/") or str(request.base_url).rstrip("/")
+        else:
+            base = str(request.base_url).rstrip("/")
+            if "0.0.0.0" in base:
+                base = base.replace("0.0.0.0", "127.0.0.1")
+        token, magic_link_url = generate_magic_link(email, base_url=base)
         
         # Send email (will log to console if Resend fails or domain not verified)
         sent = await send_magic_link_email(email, magic_link_url)
@@ -639,6 +725,7 @@ async def verify_magic_link_route(token: str, request: Request):
         key=SESSION_COOKIE_NAME,
         value=session_token,
         path="/",
+        domain=COOKIE_DOMAIN,
         httponly=True,
         secure=os.getenv("RENDER") is not None,  # Secure in production
         samesite="lax",
@@ -655,6 +742,7 @@ async def logout():
     response.delete_cookie(
         SESSION_COOKIE_NAME,
         path="/",
+        domain=COOKIE_DOMAIN,
         secure=os.getenv("RENDER") is not None,
         httponly=True,
         samesite="lax",
@@ -670,7 +758,12 @@ async def x_login(request: Request):
             status_code=503,
             detail="X login is not configured (set X_CLIENT_ID and X_CLIENT_SECRET)",
         )
-    redirect_uri = os.getenv("X_REDIRECT_URI", "http://localhost:8000/auth/x/callback")
+    # Use APP_BASE_URL on Render so callback URL matches where the app is hosted
+    if os.getenv("RENDER"):
+        base = (os.getenv("APP_BASE_URL") or "").strip().rstrip("/") or "https://www.icenews.eu"
+        redirect_uri = f"{base}/auth/x/callback"
+    else:
+        redirect_uri = os.getenv("X_REDIRECT_URI", "http://127.0.0.1:8000/auth/x/callback")
     return await _oauth.twitter.authorize_redirect(request, redirect_uri)
 
 
@@ -678,7 +771,7 @@ async def x_login(request: Request):
 async def x_callback(request: Request):
     """Handle X OAuth callback: create or get user, set session, redirect home."""
     if not _oauth:
-        return RedirectResponse(url="/login?error=x_not_configured", status_code=302)
+        return RedirectResponse(url="/auth/login?error=x_not_configured", status_code=302)
     try:
         token = await _oauth.twitter.authorize_access_token(request)
         resp = await _oauth.twitter.get(
@@ -696,7 +789,7 @@ async def x_callback(request: Request):
             email = f"{x_handle}@x.temp"
             user = create_or_get_user(email)
             if not user:
-                return RedirectResponse(url="/login?error=x_create_failed", status_code=302)
+                return RedirectResponse(url="/auth/login?error=x_create_failed", status_code=302)
             update_user_nickname(user["id"], f"@{x_handle}")
         save_twitter_connection(
             user_id=user["id"],
@@ -713,6 +806,7 @@ async def x_callback(request: Request):
             key=SESSION_COOKIE_NAME,
             value=session_token,
             path="/",
+            domain=COOKIE_DOMAIN,
             httponly=True,
             secure=os.getenv("RENDER") is not None,
             samesite="lax",
@@ -720,8 +814,11 @@ async def x_callback(request: Request):
         )
         return response
     except Exception as e:
+        import traceback
         print(f"[X AUTH ERROR] {e}", flush=True)
-        return RedirectResponse(url="/login?error=x_auth_failed", status_code=302)
+        print(f"[X AUTH ERROR] Traceback: {traceback.format_exc()}", flush=True)
+        # Single redirect to login; no loop. Common cause: X_REDIRECT_URI or session cookie host mismatch (use same host as site).
+        return RedirectResponse(url="/auth/login?error=x_auth_failed", status_code=302)
 
 
 # ============================================================================
@@ -786,10 +883,12 @@ async def stripe_portal(auth_info: dict = Depends(verify_auth)):
         raise HTTPException(status_code=401, detail="Please log in first")
     
     user = get_user_by_email(auth_info["email"])
-    if not user or not user.get("stripe_customer_id"):
+    if not user:
+        raise HTTPException(status_code=401, detail="User not found")
+    if not user.get("stripe_customer_id"):
         raise HTTPException(
             status_code=400,
-            detail="No subscription found"
+            detail="No Stripe subscription to manage. You may have premium access via a grant."
         )
     
     portal_url = create_portal_session(user["stripe_customer_id"])
@@ -1127,6 +1226,14 @@ async def profile_page(request: Request, auth_info: dict = Depends(verify_auth))
     # Get user's posts and downloads
     user_posts = get_user_posts_by_user(user_id, limit=50)
     user_downloads = get_user_downloads(user_id, limit=50)
+    for d in user_downloads:
+        if d.get("file_path") and d.get("platform") == "upload":
+            d["view_url"] = f"/api/downloads/{d['id']}/file"
+        else:
+            d["view_url"] = None
+    
+    # Subscription: only show Manage Subscription when user has Stripe
+    has_stripe_subscription = bool(user.get("stripe_customer_id"))
     
     # Format member since date
     created_at = user.get("created_at")
@@ -1150,6 +1257,7 @@ async def profile_page(request: Request, auth_info: dict = Depends(verify_auth))
             "user_bio": user.get("bio"),
             "user_posts": user_posts,
             "user_downloads": user_downloads,
+            "has_stripe_subscription": has_stripe_subscription,
             "stats": stats,
             "member_since": member_since,
             "subscription_price": SUBSCRIPTION_PRICE_EUR,

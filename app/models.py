@@ -44,3 +44,8 @@ class PostListResponse(BaseModel):
 class LikeUpdateOut(BaseModel):
     post_id: str
     like_count: int
+
+
+class DislikeUpdateOut(BaseModel):
+    post_id: str
+    dislike_count: int

@@ -133,16 +133,23 @@ def init_db() -> None:
         """
     )
     
-    # Create post_likes table (for global like counts)
+    # Create post_likes table (for global like counts and dislikes)
     cur.execute(
         """
         CREATE TABLE IF NOT EXISTS post_likes (
             post_id TEXT PRIMARY KEY,
             like_count INTEGER NOT NULL DEFAULT 0,
+            dislike_count INTEGER NOT NULL DEFAULT 0,
             updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
         );
         """
     )
+    # Migration: add dislike_count to existing DBs that don't have it
+    try:
+        cur.execute("ALTER TABLE post_likes ADD COLUMN dislike_count INTEGER NOT NULL DEFAULT 0")
+        conn.commit()
+    except sqlite3.OperationalError:
+        pass  # Column already exists
     
     # Create premium_users table (for paywall access - legacy, kept for compatibility)
     cur.execute(
@@ -285,7 +292,8 @@ def get_posts(
         SELECT p.id, p.platform, p.post_id, p.url, p.tagged_account_handle, p.tagged_hashtags,
                p.language, p.author_handle, p.author_display_name, p.category, p.text,
                p.created_at, p.retrieved_at, p.media_json, p.metrics_json, p.account_id,
-               COALESCE(l.like_count, 0) AS like_count
+               COALESCE(l.like_count, 0) AS like_count,
+               COALESCE(l.dislike_count, 0) AS dislike_count
         FROM posts p
         LEFT JOIN post_likes l ON l.post_id = p.post_id
         WHERE p.platform = ?
@@ -314,7 +322,8 @@ def get_post_by_post_id(post_id: str):
         SELECT p.id, p.platform, p.post_id, p.url, p.tagged_account_handle, p.tagged_hashtags,
                p.language, p.author_handle, p.author_display_name, p.category, p.text,
                p.created_at, p.retrieved_at, p.media_json, p.metrics_json, p.raw_json, p.account_id,
-               COALESCE(l.like_count, 0) AS like_count
+               COALESCE(l.like_count, 0) AS like_count,
+               COALESCE(l.dislike_count, 0) AS dislike_count
         FROM posts p
         LEFT JOIN post_likes l ON l.post_id = p.post_id
         WHERE p.post_id = ?
@@ -371,6 +380,55 @@ def unlike_post(post_id: str) -> int:
     )
     conn.commit()
     cur.execute("SELECT like_count FROM post_likes WHERE post_id = ?", (post_id,))
+    row = cur.fetchone()
+    conn.close()
+    return int(row[0]) if row else 0
+
+
+def dislike_post(post_id: str) -> int:
+    """Increment and return the dislike count for a post_id."""
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute(
+        """
+        INSERT INTO post_likes (post_id, like_count, dislike_count, updated_at)
+        VALUES (?, 0, 1, CURRENT_TIMESTAMP)
+        ON CONFLICT(post_id) DO UPDATE SET
+            dislike_count = dislike_count + 1,
+            updated_at = CURRENT_TIMESTAMP
+        """,
+        (post_id,),
+    )
+    conn.commit()
+    cur.execute("SELECT dislike_count FROM post_likes WHERE post_id = ?", (post_id,))
+    row = cur.fetchone()
+    conn.close()
+    return int(row[0]) if row else 0
+
+
+def undislike_post(post_id: str) -> int:
+    """Decrement (floored at 0) and return the dislike count for a post_id."""
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute(
+        """
+        INSERT INTO post_likes (post_id, like_count, dislike_count, updated_at)
+        VALUES (?, 0, 0, CURRENT_TIMESTAMP)
+        ON CONFLICT(post_id) DO NOTHING
+        """,
+        (post_id,),
+    )
+    cur.execute(
+        """
+        UPDATE post_likes
+        SET dislike_count = CASE WHEN dislike_count > 0 THEN dislike_count - 1 ELSE 0 END,
+            updated_at = CURRENT_TIMESTAMP
+        WHERE post_id = ?
+        """,
+        (post_id,),
+    )
+    conn.commit()
+    cur.execute("SELECT dislike_count FROM post_likes WHERE post_id = ?", (post_id,))
     row = cur.fetchone()
     conn.close()
     return int(row[0]) if row else 0

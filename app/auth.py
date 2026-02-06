@@ -31,10 +31,10 @@ SESSION_EXPIRY_DAYS = 30
 _serializer = URLSafeTimedSerializer(APP_SECRET_KEY)
 
 
-def generate_magic_link(email: str) -> tuple[str, str]:
+def generate_magic_link(email: str, base_url: Optional[str] = None) -> tuple[str, str]:
     """
     Generate a magic link for email authentication.
-    
+    Use base_url (e.g. from request.base_url) so the link points to the same host the user is on.
     Returns: (token, full_url)
     """
     email = email.lower().strip()
@@ -48,8 +48,9 @@ def generate_magic_link(email: str) -> tuple[str, str]:
     # Save to database
     save_magic_link(email, token, expires_at)
     
-    # Build full URL
-    full_url = urljoin(APP_BASE_URL, f"/auth/verify/{token}")
+    # Build full URL: prefer base_url from request so link matches where user is (fixes local vs prod mismatch)
+    base = (base_url or "").strip().rstrip("/") or APP_BASE_URL
+    full_url = urljoin(base if base.endswith("/") else base + "/", f"auth/verify/{token}")
     
     return token, full_url
 

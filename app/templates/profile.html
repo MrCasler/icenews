@@ -220,9 +220,11 @@
                 <h4 class="font-semibold text-emerald-800">Premium Active</h4>
                 <p class="text-emerald-700 text-sm">You have full access to all premium features including downloads and posting.</p>
               </div>
+              {% if has_stripe_subscription %}
               <a href="/api/stripe/portal" class="px-4 py-2 border border-emerald-300 text-emerald-700 text-sm font-medium rounded-lg hover:bg-emerald-50 transition">
                 Manage Subscription
               </a>
+              {% endif %}
             </div>
           </div>
           {% endif %}
@@ -341,9 +343,7 @@
                     <p class="font-medium text-slate-800 truncate" x-text="download.title || 'Untitled'"></p>
                     <p class="text-sm text-slate-500" x-text="formatDate(download.created_at)"></p>
                   </div>
-                  <a :href="download.source_url" target="_blank" class="text-blue-600 hover:text-blue-800 text-sm font-medium">
-                    View Source
-                  </a>
+                  <a :href="download.view_url || download.source_url" :target="download.view_url ? '_blank' : '_blank'" class="text-blue-600 hover:text-blue-800 text-sm font-medium" x-text="download.view_url ? 'View' : 'View Source'"></a>
                 </div>
               </template>
             </div>

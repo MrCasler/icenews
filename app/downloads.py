@@ -67,7 +67,7 @@ def _fetch_twitter_og_image(tweet_url: str) -> Optional[str]:
         r = requests.get(
             tweet_url,
             timeout=10,
-            headers={"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"},
+            headers={"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"},
         )
         r.raise_for_status()
         html = r.text
@@ -85,6 +85,10 @@ def _fetch_twitter_og_image(tweet_url: str) -> Optional[str]:
         m = re.search(r'<meta\s+content=["\']([^"\']+)["\']\s+name=["\']twitter:image["\']', html, re.I)
         if m:
             return m.group(1).strip()
+        # Fallback: any pbs.twimg.com/media URL in the page (images embedded in tweet)
+        m = re.search(r'https?://pbs\.twimg\.com/media/[A-Za-z0-9_-]+(?:\?[^"\'\s]*)?', html)
+        if m:
+            return m.group(0).split("?")[0] + "?format=jpg&name=large"
     except Exception:
         pass
     return None

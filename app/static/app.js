@@ -37,9 +37,19 @@ function _safeParseJson(value, fallback) {
 }
 
 function _safeLoadLikes() {
-  // localStorage can be unavailable (privacy mode) or contain corrupted JSON.
   try {
     const raw = localStorage.getItem("icenews_likes");
+    const parsed = _safeParseJson(raw || "{}", {});
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return {};
+    return parsed;
+  } catch {
+    return {};
+  }
+}
+
+function _safeLoadDislikes() {
+  try {
+    const raw = localStorage.getItem("icenews_dislikes");
     const parsed = _safeParseJson(raw || "{}", {});
     if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return {};
     return parsed;
@@ -55,6 +65,7 @@ function iceNews() {
     category: "",
     loading: false,
     likes: _safeLoadLikes(),
+    dislikes: _safeLoadDislikes(),
     toast: { show: false, message: "" },
     isPremium: false, // Set by server via x-init
     menuOpen: false, // Hamburger menu state
@@ -122,10 +133,14 @@ function iceNews() {
     },
 
     // ──────────────────────────────────────────────────────────────────────────
-    // Like functionality (server-side global count + local client state)
+    // Like / Dislike (server-side global count + local client state)
     // ──────────────────────────────────────────────────────────────────────────
     isLiked(postId) {
       return !!this.likes[postId];
+    },
+
+    isDisliked(postId) {
+      return !!this.dislikes[postId];
     },
 
     async toggleLike(post) {
@@ -197,6 +212,49 @@ function iceNews() {
           // ignore
         }
         this.showToast("Could not sync like with server");
+      }
+    },
+
+    async toggleDislike(post) {
+      _icenewsLog("toggleDislike()", { post_id: post?.post_id });
+      if (!post || !post.post_id) return;
+      const postId = post.post_id;
+      if (post.is_community) return; // Dislike only for feed posts
+      const wasDisliked = this.isDisliked(postId);
+      const endpoint = wasDisliked ? "undislike" : "dislike";
+      const oldCount = post.dislike_count || 0;
+      const newCount = wasDisliked ? Math.max(0, oldCount - 1) : oldCount + 1;
+      post.dislike_count = newCount;
+      if (wasDisliked) {
+        delete this.dislikes[postId];
+      } else {
+        this.dislikes[postId] = true;
+      }
+      try {
+        localStorage.setItem("icenews_dislikes", JSON.stringify(this.dislikes));
+      } catch {
+        // ignore
+      }
+      this.trackEvent(endpoint, { post_id: postId, author: post.author_handle });
+      try {
+        const resp = await fetch(`/api/posts/${encodeURIComponent(postId)}/${endpoint}`, {
+          method: "POST",
+          headers: { Accept: "application/json" },
+          credentials: "same-origin",
+        });
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        const data = await resp.json();
+        post.dislike_count = data.dislike_count ?? newCount;
+      } catch (e) {
+        post.dislike_count = oldCount;
+        if (wasDisliked) this.dislikes[postId] = true;
+        else delete this.dislikes[postId];
+        try {
+          localStorage.setItem("icenews_dislikes", JSON.stringify(this.dislikes));
+        } catch {
+          // ignore
+        }
+        this.showToast("Could not sync dislike with server");
       }
     },
 
