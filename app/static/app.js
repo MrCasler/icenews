@@ -57,6 +57,7 @@ function iceNews() {
     likes: _safeLoadLikes(),
     toast: { show: false, message: "" },
     isPremium: false, // Set by server via x-init
+    menuOpen: false, // Hamburger menu state
 
     init() {
       _icenewsLog("init() called");
@@ -248,19 +249,16 @@ function iceNews() {
     },
 
     // ──────────────────────────────────────────────────────────────────────────
-    // Download functionality (premium feature)
+    // Download functionality (available to everyone)
+    // Premium users can also save downloads to their gallery
     // ──────────────────────────────────────────────────────────────────────────
     async downloadPost(post) {
       _icenewsLog("downloadPost()", { post_id: post?.post_id, isPremium: this.isPremium });
       
       if (!post || !post.post_id) return;
       
-      if (!this.isPremium) {
-        this.showToast("Download feature requires premium access");
-        return;
-      }
-      
-      this.trackEvent("download_attempt", { post_id: post.post_id, author: post.author_handle });
+      // Downloads are available to everyone
+      this.trackEvent("download_attempt", { post_id: post.post_id, author: post.author_handle, isPremium: this.isPremium });
       
       try {
         const resp = await fetch(`/api/posts/${encodeURIComponent(post.post_id)}/download`, {
@@ -294,14 +292,34 @@ function iceNews() {
         window.URL.revokeObjectURL(url);
         document.body.removeChild(a);
         
-        this.showToast("Download started!");
-        this.trackEvent("download_success", { post_id: post.post_id, author: post.author_handle });
+        if (this.isPremium) {
+          this.showToast("Download started & saved to your gallery!");
+        } else {
+          this.showToast("Download started!");
+        }
+        this.trackEvent("download_success", { post_id: post.post_id, author: post.author_handle, isPremium: this.isPremium });
         
       } catch (e) {
         _icenewsLog("downloadPost failed", { error: e?.message || String(e) });
         this.showToast(e.message || "Download failed");
         this.trackEvent("download_failed", { post_id: post.post_id, error: e.message });
       }
+    },
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // Premium upgrade prompt (for non-premium users clicking premium features)
+    // ──────────────────────────────────────────────────────────────────────────
+    showUpgradePrompt() {
+      _icenewsLog("showUpgradePrompt()");
+      this.trackEvent("upgrade_prompt_shown");
+      
+      // Show toast with upgrade message
+      this.showToast("Sign in and subscribe for premium downloads");
+      
+      // Redirect to login after a short delay
+      setTimeout(() => {
+        window.location.href = "/auth/login";
+      }, 1500);
     },
 
     // ──────────────────────────────────────────────────────────────────────────

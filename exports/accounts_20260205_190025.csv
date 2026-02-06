@@ -1,0 +1,19 @@
+account_id,platform,handle,display_name,category,role,is_enabled,verification_url,notes,created_at,updated_at
+1,x,ICEgov,U.S. Immigration and Customs Enforcement,government,official,1,,Official Governmental Account,2026-01-27T14:40:18.597330+00:00,2026-02-03T18:38:55.815768+00:00
+2,x,JDVance,JD Vance,government,official,1,,Official Governmental Account,2026-01-27T14:40:18.597790+00:00,2026-02-03T18:38:55.817766+00:00
+3,x,CBP,CBP,government,official,1,,Official Governmental Account,2026-01-27T14:40:18.597804+00:00,2026-02-03T18:38:55.817782+00:00
+4,x,DHSgov,Homeland Security,government,official,1,,Official Governmental Account,2026-01-27T14:40:18.597813+00:00,2026-02-03T18:38:55.817792+00:00
+5,x,USBPChief,Chief Michael W. Banks,government,official,1,,Official Governmental Account,2026-01-27T14:40:18.597820+00:00,2026-02-03T18:38:55.817801+00:00
+6,x,HSI_HQ,Homeland Security Investigations,government,official,1,,Official Governmental Account,2026-01-27T14:40:18.597826+00:00,2026-02-03T18:38:55.817809+00:00
+7,x,VP,Vice Presidenct JD Vance,government,official,1,,Official Governmental Account,2026-01-27T14:40:18.597832+00:00,2026-02-03T18:38:55.817816+00:00
+8,x,KristiNoem,Kristi Noem,government,official,1,,Official Governmental Account,2026-01-27T14:40:18.597838+00:00,2026-02-03T18:38:55.817823+00:00
+9,x,realDonaldTrump,Donald J. Trump,government,official,1,,Official Governmental Account,2026-01-27T14:40:18.597844+00:00,2026-02-03T18:38:55.817831+00:00
+10,x,ICEdeputy,ICE Deputy Director,government,official,1,,Official Governmental Account,2026-01-27T14:40:18.597850+00:00,2026-02-03T18:38:55.817838+00:00
+11,x,AGPamBondi,Attorney General Pamela Bonta,government,official,1,,Official Governmental Account,2026-01-27T14:40:18.597856+00:00,2026-02-03T18:38:55.817845+00:00
+12,x,EdKrassen,Ed Krassenstein,independent,journalist,1,,Journalist Independent,2026-01-27T14:40:18.597862+00:00,2026-02-03T18:38:55.817852+00:00
+13,x,SarahLongwell25,Sarah Longwell,independent,journalist,1,,Journalist Independent,2026-01-27T14:40:18.597868+00:00,2026-02-03T18:38:55.817859+00:00
+14,x,AnveeBhutani,Anvee Bhutani,unknown,journalist,1,,Journalist at Wall Street Journal,2026-01-27T14:40:18.597875+00:00,2026-02-03T18:38:55.817866+00:00
+15,x,rebeccaballhaus,Rebecca Ballhaus,unknown,journalist,1,,Wall Street Journal Investigative Reporter,2026-01-27T14:40:18.597881+00:00,2026-02-03T18:38:55.817873+00:00
+16,x,Meridithmcgraw,Meridith McGraw,unknown,journalist,1,,White House Reporter at Wall Street Journal,2026-01-27T14:40:18.597888+00:00,2026-02-03T18:38:55.817880+00:00
+17,x,pamphletsY,★★★ Pamphlets ★★★,unknown,unknown,1,,unknown,2026-01-27T14:40:18.597895+00:00,2026-02-03T18:38:55.817887+00:00
+18,x,ReallyAmerican1,Really American,unknown,unknown,1,,unknown,2026-01-27T14:40:18.597910+00:00,2026-02-03T18:38:55.817952+00:00

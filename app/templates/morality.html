@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Why This Matters – ICENews</title>
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] }
+        }
+      }
+    }
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    [x-cloak] { display: none !important; }
+  </style>
+  <!-- Stripe Buy Button for Donations -->
+  <script async src="https://js.stripe.com/v3/buy-button.js"></script>
+</head>
+<body class="bg-gradient-to-br from-slate-50 to-slate-100 text-slate-900 min-h-screen font-sans" x-data="{ menuOpen: false }" x-cloak>
+  
+  <!-- Header with Hamburger Nav -->
+  <header class="bg-slate-900 text-white shadow-lg sticky top-0 z-50">
+    <div class="max-w-4xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <!-- Hamburger Menu -->
+        <button @click="menuOpen = !menuOpen" class="p-2 hover:bg-slate-800 rounded-lg transition lg:hidden">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+          </svg>
+        </button>
+        
+        <a href="/" class="flex items-center gap-3 hover:opacity-90 transition">
+          <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center">
+            <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z"/>
+            </svg>
+          </div>
+          <div class="hidden sm:block">
+            <h1 class="text-xl font-bold tracking-tight">ICENews</h1>
+            <p class="text-slate-400 text-xs">Why This Matters</p>
+          </div>
+        </a>
+      </div>
+      
+      <!-- Desktop Nav -->
+      <nav class="hidden lg:flex items-center gap-4">
+        <a href="/" class="text-sm text-slate-300 hover:text-white transition">Feed</a>
+        <span class="text-slate-600">|</span>
+        <a href="/downloads" class="text-sm text-slate-300 hover:text-white transition">Downloads</a>
+        <span class="text-slate-600">|</span>
+        <a href="/why" class="text-sm text-white font-medium">Why</a>
+      </nav>
+    </div>
+    
+    <!-- Mobile Menu Dropdown -->
+    <div x-show="menuOpen" x-transition @click.outside="menuOpen = false" class="lg:hidden border-t border-slate-800 bg-slate-900">
+      <nav class="px-4 py-4 space-y-2">
+        <a href="/" class="block px-4 py-2 rounded-lg text-slate-300 hover:bg-slate-800 hover:text-white transition">Feed</a>
+        <a href="/downloads" class="block px-4 py-2 rounded-lg text-slate-300 hover:bg-slate-800 hover:text-white transition">Downloads</a>
+        <a href="/why" class="block px-4 py-2 rounded-lg bg-slate-800 text-white font-medium">Why This Matters</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="max-w-4xl mx-auto px-4 sm:px-6 py-12">
+    
+    <article class="prose prose-slate lg:prose-lg max-w-none">
+      
+      <h1 class="text-4xl font-bold text-slate-900 mb-6">Why Documenting ICE Activity Matters</h1>
+      
+      <p class="text-xl text-slate-600 mb-8 leading-relaxed">
+        In an era of increasing surveillance and government overreach, documenting the actions of 
+        Immigration and Customs Enforcement (ICE) has become a critical form of civic journalism.
+      </p>
+
+      <section class="mb-12">
+        <h2 class="text-2xl font-semibold text-slate-800 mb-4">The Threat of Totalitarian Control</h2>
+        
+        <p class="text-slate-700 leading-relaxed mb-4">
+          When government agencies operate without transparency or accountability, the foundation 
+          of democracy erodes. History teaches us that unchecked power inevitably leads to abuse. 
+          The documentation of enforcement actions serves as a crucial check on power.
+        </p>
+        
+        <p class="text-slate-700 leading-relaxed mb-4">
+          Every video, every witness account, every piece of evidence helps ensure that those 
+          in power cannot rewrite history or deny their actions. This is not about politics—it's 
+          about preserving the truth.
+        </p>
+
+        <!-- Donation CTA -->
+        <div class="bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-200 rounded-xl p-6 my-8">
+          <div class="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+            <div class="flex-1">
+              <h3 class="text-lg font-semibold text-indigo-800 mb-2">Support Independent Documentation</h3>
+              <p class="text-indigo-700 text-sm">
+                Your donation helps us maintain this platform, archive footage, and continue 
+                providing a transparent record of enforcement actions.
+              </p>
+              <p class="text-indigo-600/90 text-xs mt-2 font-medium">
+                Transparency note: This site is built and maintained with the help of AI tools. We don’t hide that—unlike some administrations, we believe you deserve to know.
+              </p>
+            </div>
+            <div class="shrink-0">
+              <stripe-buy-button
+                buy-button-id="buy_btn_1SxYHwC7nxdY2uAUNwAJ8CMn"
+                publishable-key="pk_live_51R5IM8C7nxdY2uAU7WJGnndI0qge0jqfQ7BIN8TfGMA2NP1o9IHYbTLNBpY0I4lE3zWV0pXTDeDQAIihQwbkDnzK00Mh99IAOd"
+              ></stripe-buy-button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="mb-12">
+        <h2 class="text-2xl font-semibold text-slate-800 mb-4">What You Can Do</h2>
+        
+        <ul class="space-y-3 text-slate-700">
+          <li class="flex items-start gap-3">
+            <svg class="w-6 h-6 text-emerald-500 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+            </svg>
+            <span><strong>Document safely</strong> – If you witness ICE activity, record from a safe distance. Know your rights.</span>
+          </li>
+          <li class="flex items-start gap-3">
+            <svg class="w-6 h-6 text-emerald-500 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+            </svg>
+            <span><strong>Share responsibly</strong> – Protect identities of vulnerable individuals while exposing official actions.</span>
+          </li>
+          <li class="flex items-start gap-3">
+            <svg class="w-6 h-6 text-emerald-500 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+            </svg>
+            <span><strong>Support local organizations</strong> – Connect with immigrant rights groups in your community.</span>
+          </li>
+        </ul>
+      </section>
+
+      <section class="mb-12">
+        <h2 class="text-2xl font-semibold text-slate-800 mb-4">Learn More</h2>
+        
+        <p class="text-slate-700 leading-relaxed mb-4">
+          For more analysis on surveillance, privacy, and digital rights, visit our partners at Secubri:
+        </p>
+        
+        <a 
+          href="https://www.secubri.com/blog" 
+          target="_blank" 
+          rel="noopener noreferrer"
+          class="inline-flex items-center gap-2 px-5 py-3 bg-slate-800 text-white font-medium rounded-lg hover:bg-slate-700 transition"
+        >
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
+          </svg>
+          Visit Secubri Blog
+        </a>
+      </section>
+
+    </article>
+  </main>
+
+  <!-- Footer -->
+  <footer class="mt-12 border-t border-slate-200 bg-white">
+    <div class="max-w-4xl mx-auto px-4 sm:px-6 py-6 text-center text-sm text-slate-500">
+      <p>ICENews Social Monitoring System</p>
+      <p class="mt-2">
+        <a href="/privacy" class="text-indigo-600 hover:underline">Privacy</a>
+        ·
+        <a href="/terms" class="text-indigo-600 hover:underline">Terms</a>
+      </p>
+    </div>
+  </footer>
+</body>
+</html>

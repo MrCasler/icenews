@@ -13,17 +13,13 @@ __pycache__/
 venv/
 .venv/
 
-# Ignore main Dockerfile so Render uses native Python (not Docker)
-# Dockerfile.local is kept for local docker-compose development
-
-# Local cloned repos / vendor
-scrapfly-scrapers/
-
-# IDE
+# Cursor/IDE
+.cursor/
 .idea/
 .vscode/
 *.swp
 
+md/
 # macOS
 .DS_Store
 
@@ -32,3 +28,6 @@ data/
 
 # Backups
 backups/
+
+# User uploads (media files)
+uploads/

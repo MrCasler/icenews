@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Profile – ICENews</title>
+  <script src="/static/app.js?v={{ cache_bust }}"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] }
+        }
+      }
+    }
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    [x-cloak] { display: none !important; }
+  </style>
+  {% if umami_website_id and umami_script_url %}
+  <script defer src="{{ umami_script_url }}" data-website-id="{{ umami_website_id }}"></script>
+  {% endif %}
+</head>
+<body class="bg-gradient-to-br from-slate-50 to-slate-100 text-slate-900 min-h-screen font-sans" x-data="profilePage()" x-cloak>
+  
+  <!-- Header with Hamburger Nav -->
+  <header class="bg-slate-900 text-white shadow-lg sticky top-0 z-50">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <!-- Hamburger Menu -->
+        <button @click="menuOpen = !menuOpen" class="p-2 hover:bg-slate-800 rounded-lg transition lg:hidden">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+          </svg>
+        </button>
+        
+        <a href="/" class="flex items-center gap-3 hover:opacity-90 transition">
+          <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center">
+            <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z"/>
+            </svg>
+          </div>
+          <div class="hidden sm:block">
+            <h1 class="text-xl font-bold tracking-tight">ICENews</h1>
+            <p class="text-slate-400 text-xs">Your Profile</p>
+          </div>
+        </a>
+      </div>
+      
+      <!-- Desktop Nav -->
+      <nav class="hidden lg:flex items-center gap-4">
+        <a href="/" class="text-sm text-slate-300 hover:text-white transition">Feed</a>
+        <span class="text-slate-600">|</span>
+        <a href="/downloads" class="text-sm text-slate-300 hover:text-white transition">Downloads</a>
+        <span class="text-slate-600">|</span>
+        <a href="/why" class="text-sm text-slate-300 hover:text-white transition">Why</a>
+        <span class="text-slate-600">|</span>
+        <a href="/profile" class="text-sm text-white font-medium">Profile</a>
+        
+        {% if is_premium %}
+        <span class="inline-flex items-center gap-1.5 text-xs font-semibold text-amber-400 bg-amber-500/20 px-2.5 py-1 rounded-full border border-amber-500/30 ml-2">
+          <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+            <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
+          </svg>
+          Premium
+        </span>
+        {% endif %}
+        
+        <a href="/auth/logout" class="ml-2 text-sm text-slate-400 hover:text-white transition">Logout</a>
+      </nav>
+      
+      <!-- Mobile: Premium badge and profile -->
+      <div class="flex items-center gap-2 lg:hidden">
+        {% if is_premium %}
+        <span class="inline-flex items-center gap-1 text-xs font-semibold text-amber-400 bg-amber-500/20 px-2 py-1 rounded-full border border-amber-500/30">
+          <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+            <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
+          </svg>
+        </span>
+        {% endif %}
+      </div>
+    </div>
+    
+    <!-- Mobile Menu Dropdown -->
+    <div x-show="menuOpen" x-transition @click.outside="menuOpen = false" class="lg:hidden border-t border-slate-800 bg-slate-900">
+      <nav class="px-4 py-4 space-y-2">
+        <a href="/" class="block px-4 py-2 rounded-lg text-slate-300 hover:bg-slate-800 hover:text-white transition">Feed</a>
+        <a href="/downloads" class="block px-4 py-2 rounded-lg text-slate-300 hover:bg-slate-800 hover:text-white transition">Downloads</a>
+        <a href="/why" class="block px-4 py-2 rounded-lg text-slate-300 hover:bg-slate-800 hover:text-white transition">Why This Matters</a>
+        <div class="border-t border-slate-800 my-2"></div>
+        <a href="/profile" class="block px-4 py-2 rounded-lg bg-slate-800 text-white font-medium">Profile</a>
+        <a href="/auth/logout" class="block px-4 py-2 rounded-lg text-slate-400 hover:bg-slate-800 hover:text-white transition">Logout</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="max-w-4xl mx-auto px-4 sm:px-6 py-8">
+    
+    <!-- Profile Header -->
+    <div class="bg-white rounded-xl shadow-sm border border-slate-200/60 p-6 mb-6">
+      <div class="flex items-start gap-6">
+        <!-- Avatar -->
+        <div class="w-20 h-20 rounded-full bg-gradient-to-br from-slate-600 to-slate-800 flex items-center justify-center text-white text-2xl font-bold shrink-0">
+          {{ user_email[0] | upper if user_email else '?' }}
+        </div>
+        
+        <div class="flex-1 min-w-0">
+          <div class="flex items-center gap-3 flex-wrap">
+            <h1 class="text-2xl font-bold text-slate-800 truncate">{{ user_nickname or user_email.split('@')[0] }}</h1>
+            {% if is_premium %}
+            <span class="inline-flex items-center gap-1.5 text-xs font-semibold text-amber-600 bg-amber-100 px-2.5 py-1 rounded-full">
+              <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
+              </svg>
+              Premium Member
+            </span>
+            {% endif %}
+          </div>
+          <p class="text-slate-500 mt-1">{{ user_email }}</p>
+          {% if user_bio %}
+          <p class="text-slate-600 mt-2">{{ user_bio }}</p>
+          {% endif %}
+          <p class="text-slate-400 text-sm mt-2">Member since {{ member_since }}</p>
+        </div>
+      </div>
+      
+      <!-- Stats Row -->
+      <div class="mt-6 pt-6 border-t border-slate-100 grid grid-cols-3 gap-4">
+        <div class="text-center">
+          <p class="text-2xl font-bold text-slate-800">{{ stats.post_count }}</p>
+          <p class="text-sm text-slate-500">Posts</p>
+        </div>
+        <div class="text-center">
+          <p class="text-2xl font-bold text-slate-800">{{ stats.download_count }}</p>
+          <p class="text-sm text-slate-500">Downloads</p>
+        </div>
+        <div class="text-center">
+          <p class="text-2xl font-bold text-slate-800">{{ stats.total_likes }}</p>
+          <p class="text-sm text-slate-500">Likes Received</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tab Navigation -->
+    <div class="bg-white rounded-xl shadow-sm border border-slate-200/60 overflow-hidden">
+      <div class="border-b border-slate-200">
+        <nav class="flex -mb-px">
+          <button 
+            @click="activeTab = 'overview'"
+            class="flex-1 px-4 py-4 text-sm font-medium text-center transition-colors"
+            :class="activeTab === 'overview' ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50/50' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'"
+          >
+            Overview
+          </button>
+          <button 
+            @click="activeTab = 'posts'"
+            class="flex-1 px-4 py-4 text-sm font-medium text-center transition-colors"
+            :class="activeTab === 'posts' ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50/50' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'"
+          >
+            My Posts
+          </button>
+          <button 
+            @click="activeTab = 'downloads'"
+            class="flex-1 px-4 py-4 text-sm font-medium text-center transition-colors"
+            :class="activeTab === 'downloads' ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50/50' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'"
+          >
+            My Downloads
+          </button>
+          <button 
+            @click="activeTab = 'settings'"
+            class="flex-1 px-4 py-4 text-sm font-medium text-center transition-colors"
+            :class="activeTab === 'settings' ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50/50' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'"
+          >
+            Settings
+          </button>
+        </nav>
+      </div>
+
+      <div class="p-6">
+        
+        <!-- Overview Tab -->
+        <div x-show="activeTab === 'overview'" x-transition>
+          <h3 class="text-lg font-semibold text-slate-800 mb-4">Welcome back!</h3>
+          
+          {% if not is_premium %}
+          <!-- Premium CTA -->
+          <div class="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-xl p-5 mb-6">
+            <div class="flex items-start gap-4">
+              <div class="w-10 h-10 rounded-lg bg-amber-100 flex items-center justify-center shrink-0">
+                <svg class="w-5 h-5 text-amber-600" fill="currentColor" viewBox="0 0 20 20">
+                  <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
+                </svg>
+              </div>
+              <div class="flex-1">
+                <h4 class="font-semibold text-amber-800">Upgrade to Premium</h4>
+                <p class="text-amber-700 text-sm mt-1">Download videos, post your own content, and support independent journalism for just <strong>{{ subscription_price }} EUR/month</strong>.</p>
+                <a href="/api/stripe/checkout" class="inline-flex items-center gap-2 mt-3 px-4 py-2 bg-amber-600 text-white text-sm font-medium rounded-lg hover:bg-amber-700 transition">
+                  Upgrade Now
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"/>
+                  </svg>
+                </a>
+              </div>
+            </div>
+          </div>
+          {% else %}
+          <!-- Premium Status -->
+          <div class="bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200 rounded-xl p-5 mb-6">
+            <div class="flex items-center gap-4">
+              <div class="w-10 h-10 rounded-lg bg-emerald-100 flex items-center justify-center">
+                <svg class="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+              </div>
+              <div class="flex-1">
+                <h4 class="font-semibold text-emerald-800">Premium Active</h4>
+                <p class="text-emerald-700 text-sm">You have full access to all premium features including downloads and posting.</p>
+              </div>
+              <a href="/api/stripe/portal" class="px-4 py-2 border border-emerald-300 text-emerald-700 text-sm font-medium rounded-lg hover:bg-emerald-50 transition">
+                Manage Subscription
+              </a>
+            </div>
+          </div>
+          {% endif %}
+          
+          <!-- Quick Actions -->
+          <h4 class="text-sm font-semibold text-slate-600 uppercase tracking-wider mb-3">Quick Actions</h4>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <a href="/" class="flex items-center gap-3 p-4 bg-slate-50 rounded-lg hover:bg-slate-100 transition">
+              <div class="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center">
+                <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z"/>
+                </svg>
+              </div>
+              <div>
+                <p class="font-medium text-slate-800">Browse Feed</p>
+                <p class="text-sm text-slate-500">View the latest posts</p>
+              </div>
+            </a>
+            <a href="/downloads" class="flex items-center gap-3 p-4 bg-slate-50 rounded-lg hover:bg-slate-100 transition">
+              <div class="w-10 h-10 rounded-lg bg-indigo-100 flex items-center justify-center">
+                <svg class="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                </svg>
+              </div>
+              <div>
+                <p class="font-medium text-slate-800">Downloads Gallery</p>
+                <p class="text-sm text-slate-500">View community downloads</p>
+              </div>
+            </a>
+          </div>
+        </div>
+
+        <!-- My Posts Tab -->
+        <div x-show="activeTab === 'posts'" x-transition>
+          {% if is_premium %}
+          <!-- Create Post Form -->
+          <div class="mb-6">
+            <h3 class="text-lg font-semibold text-slate-800 mb-4">Create a Post</h3>
+            <form @submit.prevent="createPost">
+              <textarea 
+                x-model="newPost.content"
+                placeholder="Share ICE-related content or commentary..."
+                rows="3"
+                class="w-full px-4 py-3 rounded-lg border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition resize-none"
+                :disabled="newPost.loading"
+              ></textarea>
+              <div class="mt-3 flex items-center justify-between">
+                <p class="text-sm text-slate-500" x-text="(newPost.content?.length || 0) + '/2000'"></p>
+                <button 
+                  type="submit"
+                  class="px-5 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition flex items-center gap-2"
+                  :class="{ 'opacity-50 cursor-wait': newPost.loading }"
+                  :disabled="newPost.loading || !newPost.content?.trim()"
+                >
+                  <span x-show="!newPost.loading">Post</span>
+                  <span x-show="newPost.loading">Posting...</span>
+                </button>
+              </div>
+              <p x-show="newPost.message" class="mt-2 text-sm" :class="newPost.success ? 'text-green-600' : 'text-red-600'" x-text="newPost.message"></p>
+            </form>
+          </div>
+          {% endif %}
+          
+          <h3 class="text-lg font-semibold text-slate-800 mb-4">Your Posts</h3>
+          
+          <!-- Posts List -->
+          <template x-if="userPosts.length > 0">
+            <div class="space-y-4">
+              <template x-for="post in userPosts" :key="post.id">
+                <div class="bg-slate-50 rounded-lg p-4">
+                  <p class="text-slate-700 whitespace-pre-wrap" x-text="post.content"></p>
+                  <div class="mt-3 flex items-center justify-between text-sm text-slate-500">
+                    <span x-text="formatDate(post.created_at)"></span>
+                    <div class="flex items-center gap-4">
+                      <span class="flex items-center gap-1">
+                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                          <path d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z"/>
+                        </svg>
+                        <span x-text="post.like_count || 0"></span>
+                      </span>
+                      <button @click="deletePost(post.id)" class="text-red-500 hover:text-red-700">Delete</button>
+                    </div>
+                  </div>
+                </div>
+              </template>
+            </div>
+          </template>
+          
+          <template x-if="userPosts.length === 0">
+            <div class="text-center py-12 text-slate-500">
+              <svg class="w-12 h-12 mx-auto mb-3 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+              </svg>
+              <p>You haven't posted anything yet.</p>
+              {% if not is_premium %}
+              <p class="mt-2">Upgrade to Premium to start posting!</p>
+              {% endif %}
+            </div>
+          </template>
+        </div>
+
+        <!-- My Downloads Tab -->
+        <div x-show="activeTab === 'downloads'" x-transition>
+          <h3 class="text-lg font-semibold text-slate-800 mb-4">Your Downloads</h3>
+          
+          <template x-if="userDownloads.length > 0">
+            <div class="space-y-3">
+              <template x-for="download in userDownloads" :key="download.id">
+                <div class="flex items-center gap-4 p-4 bg-slate-50 rounded-lg">
+                  <div class="w-12 h-12 rounded-lg bg-slate-200 flex items-center justify-center shrink-0">
+                    <svg class="w-6 h-6 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+                    </svg>
+                  </div>
+                  <div class="flex-1 min-w-0">
+                    <p class="font-medium text-slate-800 truncate" x-text="download.title || 'Untitled'"></p>
+                    <p class="text-sm text-slate-500" x-text="formatDate(download.created_at)"></p>
+                  </div>
+                  <a :href="download.source_url" target="_blank" class="text-blue-600 hover:text-blue-800 text-sm font-medium">
+                    View Source
+                  </a>
+                </div>
+              </template>
+            </div>
+          </template>
+          
+          <template x-if="userDownloads.length === 0">
+            <div class="text-center py-12 text-slate-500">
+              <svg class="w-12 h-12 mx-auto mb-3 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+              </svg>
+              <p>You haven't downloaded anything yet.</p>
+              <a href="/" class="mt-2 inline-block text-blue-600 hover:text-blue-800">Browse the feed to download content</a>
+            </div>
+          </template>
+        </div>
+
+        <!-- Settings Tab -->
+        <div x-show="activeTab === 'settings'" x-transition>
+          <h3 class="text-lg font-semibold text-slate-800 mb-6">Account Settings</h3>
+          
+          <form @submit.prevent="saveSettings" class="space-y-6">
+            <!-- Nickname -->
+            <div>
+              <label class="block text-sm font-medium text-slate-700 mb-2">Display Name</label>
+              <input 
+                type="text" 
+                x-model="settings.nickname"
+                placeholder="Your display name"
+                maxlength="50"
+                class="w-full px-4 py-3 rounded-lg border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
+                :disabled="settings.loading"
+              >
+              <p class="mt-1 text-sm text-slate-500">This will be shown instead of your email on posts</p>
+            </div>
+            
+            <!-- Bio -->
+            <div>
+              <label class="block text-sm font-medium text-slate-700 mb-2">Bio</label>
+              <textarea 
+                x-model="settings.bio"
+                placeholder="Tell us about yourself..."
+                rows="3"
+                maxlength="500"
+                class="w-full px-4 py-3 rounded-lg border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition resize-none"
+                :disabled="settings.loading"
+              ></textarea>
+              <p class="mt-1 text-sm text-slate-500" x-text="(settings.bio?.length || 0) + '/500'"></p>
+            </div>
+            
+            <!-- Email (read-only) -->
+            <div>
+              <label class="block text-sm font-medium text-slate-700 mb-2">Email Address</label>
+              <input 
+                type="email" 
+                value="{{ user_email }}"
+                disabled
+                class="w-full px-4 py-3 rounded-lg border border-slate-200 bg-slate-50 text-slate-500"
+              >
+              <p class="mt-1 text-sm text-slate-500">Email cannot be changed</p>
+            </div>
+            
+            <div class="pt-4 border-t border-slate-200">
+              <button 
+                type="submit"
+                class="px-6 py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition flex items-center gap-2"
+                :class="{ 'opacity-50 cursor-wait': settings.loading }"
+                :disabled="settings.loading"
+              >
+                <span x-show="!settings.loading">Save Changes</span>
+                <span x-show="settings.loading">Saving...</span>
+              </button>
+              <p x-show="settings.message" class="mt-3 text-sm" :class="settings.success ? 'text-green-600' : 'text-red-600'" x-text="settings.message"></p>
+            </div>
+          </form>
+          
+          {% if is_premium %}
+          <!-- Subscription Management -->
+          <div class="mt-8 pt-8 border-t border-slate-200">
+            <h4 class="text-lg font-semibold text-slate-800 mb-4">Subscription</h4>
+            <div class="flex items-center justify-between p-4 bg-slate-50 rounded-lg">
+              <div>
+                <p class="font-medium text-slate-800">Premium Plan</p>
+                <p class="text-sm text-slate-500">{{ subscription_price }} EUR/month</p>
+              </div>
+              <a href="/api/stripe/portal" class="px-4 py-2 border border-slate-300 text-slate-700 text-sm font-medium rounded-lg hover:bg-slate-100 transition">
+                Manage
+              </a>
+            </div>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Footer -->
+  <footer class="mt-12 border-t border-slate-200 bg-white">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 py-6 text-center text-sm text-slate-500">
+      <p>ICENews Social Monitoring System</p>
+      <p class="mt-2">
+        <a href="/privacy" class="text-indigo-600 hover:underline">Privacy</a>
+        ·
+        <a href="/terms" class="text-indigo-600 hover:underline">Terms</a>
+      </p>
+    </div>
+  </footer>
+
+  <!-- Toast notification -->
+  <div 
+    x-show="toast.show" 
+    x-transition
+    class="fixed bottom-6 right-6 bg-slate-800 text-white px-4 py-3 rounded-lg shadow-lg text-sm"
+    x-text="toast.message"
+  ></div>
+
+  <script>
+    function profilePage() {
+      return {
+        menuOpen: false,
+        activeTab: 'overview',
+        userPosts: {{ user_posts | tojson | safe }},
+        userDownloads: {{ user_downloads | tojson | safe }},
+        toast: { show: false, message: '' },
+        
+        newPost: {
+          content: '',
+          loading: false,
+          success: false,
+          message: ''
+        },
+        
+        settings: {
+          nickname: '{{ user_nickname or "" }}',
+          bio: '{{ user_bio or "" }}',
+          loading: false,
+          success: false,
+          message: ''
+        },
+
+        async createPost() {
+          if (!this.newPost.content?.trim()) return;
+          
+          this.newPost.loading = true;
+          this.newPost.message = '';
+          
+          try {
+            const response = await fetch('/api/posts/create', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ content: this.newPost.content })
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+              this.newPost.success = true;
+              this.newPost.message = 'Post created!';
+              this.newPost.content = '';
+              // Refresh posts
+              await this.fetchUserPosts();
+            } else {
+              this.newPost.success = false;
+              this.newPost.message = data.detail || 'Failed to create post';
+            }
+          } catch (e) {
+            this.newPost.success = false;
+            this.newPost.message = 'Network error. Please try again.';
+          } finally {
+            this.newPost.loading = false;
+          }
+        },
+
+        async deletePost(postId) {
+          if (!confirm('Delete this post?')) return;
+          
+          try {
+            const response = await fetch(`/api/posts/${postId}`, {
+              method: 'DELETE'
+            });
+
+            if (response.ok) {
+              this.userPosts = this.userPosts.filter(p => p.id !== postId);
+              this.showToast('Post deleted');
+            } else {
+              this.showToast('Failed to delete post');
+            }
+          } catch (e) {
+            this.showToast('Network error');
+          }
+        },
+
+        async fetchUserPosts() {
+          try {
+            const response = await fetch('/api/user/posts');
+            const data = await response.json();
+            this.userPosts = data.posts || [];
+          } catch (e) {
+            console.error('Failed to fetch posts:', e);
+          }
+        },
+
+        async saveSettings() {
+          this.settings.loading = true;
+          this.settings.message = '';
+          
+          try {
+            const response = await fetch('/api/user/profile', {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                nickname: this.settings.nickname,
+                bio: this.settings.bio
+              })
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+              this.settings.success = true;
+              this.settings.message = 'Settings saved!';
+            } else {
+              this.settings.success = false;
+              this.settings.message = data.detail || 'Failed to save settings';
+            }
+          } catch (e) {
+            this.settings.success = false;
+            this.settings.message = 'Network error. Please try again.';
+          } finally {
+            this.settings.loading = false;
+          }
+        },
+
+        formatDate(dateStr) {
+          if (!dateStr) return '';
+          const date = new Date(dateStr);
+          return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+        },
+
+        showToast(message) {
+          this.toast.message = message;
+          this.toast.show = true;
+          setTimeout(() => { this.toast.show = false; }, 3000);
+        }
+      };
+    }
+  </script>
+</body>
+</html>

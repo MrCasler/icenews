@@ -18,3 +18,17 @@ requests>=2.31.0
 
 # Download feature (premium)
 yt-dlp>=2024.0.0
+
+# Authentication (magic link + X OAuth)
+itsdangerous>=2.1.0
+authlib>=1.3.0
+python-multipart>=0.0.6
+
+# Email sending (magic links)
+resend>=0.8.0
+
+# Environment variables
+python-dotenv>=1.0.0
+
+# Payments (Stripe subscription)
+stripe>=7.0.0

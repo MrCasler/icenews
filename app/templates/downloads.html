@@ -1,0 +1,678 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Downloads Gallery – ICENews</title>
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] }
+        }
+      }
+    }
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    [x-cloak] { display: none !important; }
+  </style>
+  <!-- Stripe Buy Button -->
+  <script async src="https://js.stripe.com/v3/buy-button.js"></script>
+  {% if umami_website_id and umami_script_url %}
+  <script defer src="{{ umami_script_url }}" data-website-id="{{ umami_website_id }}"></script>
+  {% endif %}
+</head>
+<body class="bg-gradient-to-br from-slate-50 to-slate-100 text-slate-900 min-h-screen font-sans" x-data="{ ...downloadsPage(), menuOpen: false }" x-cloak>
+  
+  <!-- Header with Hamburger Nav -->
+  <header class="bg-slate-900 text-white shadow-lg sticky top-0 z-50">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <!-- Hamburger Menu -->
+        <button @click="menuOpen = !menuOpen" class="p-2 hover:bg-slate-800 rounded-lg transition lg:hidden">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+          </svg>
+        </button>
+        
+        <a href="/" class="flex items-center gap-3 hover:opacity-90 transition">
+          <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center">
+            <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z"/>
+            </svg>
+          </div>
+          <div class="hidden sm:block">
+            <h1 class="text-xl font-bold tracking-tight">ICENews</h1>
+            <p class="text-slate-400 text-xs">Downloads Gallery</p>
+          </div>
+        </a>
+      </div>
+      
+      <!-- Desktop Nav -->
+      <nav class="hidden lg:flex items-center gap-4">
+        <a href="/" class="text-sm text-slate-300 hover:text-white transition">Feed</a>
+        <span class="text-slate-600">|</span>
+        <a href="/downloads" class="text-sm text-white font-medium">Downloads</a>
+        <span class="text-slate-600">|</span>
+        <a href="/why" class="text-sm text-slate-300 hover:text-white transition">Why</a>
+        
+        {% if is_premium %}
+        <span class="inline-flex items-center gap-1.5 text-xs font-semibold text-amber-400 bg-amber-500/20 px-2.5 py-1 rounded-full border border-amber-500/30 ml-2">
+          <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+            <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
+          </svg>
+          Premium
+        </span>
+        {% endif %}
+        
+        {% if is_authenticated %}
+        <div class="flex items-center gap-3 ml-2">
+          <a href="/profile" class="text-sm text-slate-300 hover:text-white transition flex items-center gap-1.5">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+            </svg>
+            Profile
+          </a>
+          <a href="/auth/logout" class="text-sm text-slate-400 hover:text-white transition">Logout</a>
+        </div>
+        {% else %}
+        <a href="/auth/login" class="ml-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition">
+          Sign In
+        </a>
+        {% endif %}
+      </nav>
+      
+      <!-- Mobile: Auth and Premium badge -->
+      <div class="flex items-center gap-2 lg:hidden">
+        {% if is_premium %}
+        <span class="inline-flex items-center gap-1 text-xs font-semibold text-amber-400 bg-amber-500/20 px-2 py-1 rounded-full border border-amber-500/30">
+          <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+            <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
+          </svg>
+        </span>
+        {% endif %}
+        {% if not is_authenticated %}
+        <a href="/auth/login" class="px-3 py-1.5 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition">
+          Sign In
+        </a>
+        {% endif %}
+      </div>
+    </div>
+    
+    <!-- Mobile Menu Dropdown -->
+    <div x-show="menuOpen" x-transition @click.outside="menuOpen = false" class="lg:hidden border-t border-slate-800 bg-slate-900">
+      <nav class="px-4 py-4 space-y-2">
+        <a href="/" class="block px-4 py-2 rounded-lg text-slate-300 hover:bg-slate-800 hover:text-white transition">Feed</a>
+        <a href="/downloads" class="block px-4 py-2 rounded-lg bg-slate-800 text-white font-medium">Downloads</a>
+        <a href="/why" class="block px-4 py-2 rounded-lg text-slate-300 hover:bg-slate-800 hover:text-white transition">Why This Matters</a>
+        <div class="border-t border-slate-800 my-2"></div>
+        {% if is_authenticated %}
+        <a href="/profile" class="block px-4 py-2 rounded-lg text-slate-300 hover:bg-slate-800 hover:text-white transition">Profile</a>
+        <a href="/auth/logout" class="block px-4 py-2 rounded-lg text-slate-400 hover:bg-slate-800 hover:text-white transition">Logout</a>
+        {% else %}
+        <a href="/auth/login" class="block px-4 py-2 rounded-lg bg-blue-600 text-white text-center font-medium">Sign In</a>
+        {% endif %}
+      </nav>
+    </div>
+  </header>
+
+  <main class="max-w-6xl mx-auto px-4 sm:px-6 py-8">
+    
+    <!-- Page Header -->
+    <div class="mb-8">
+      <h2 class="text-3xl font-bold text-slate-800 mb-2">Downloads Gallery</h2>
+      <p class="text-slate-600">Community-contributed ICE footage downloads. {{ total_downloads }} total downloads.</p>
+    </div>
+
+    <!-- Premium CTA (for non-premium users) -->
+    {% if not is_premium %}
+    <div class="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-xl p-6 mb-8">
+      <div class="flex items-start gap-4">
+        <div class="w-12 h-12 rounded-lg bg-amber-100 flex items-center justify-center shrink-0">
+          <svg class="w-6 h-6 text-amber-600" fill="currentColor" viewBox="0 0 20 20">
+            <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
+          </svg>
+        </div>
+        <div class="flex-1">
+          <h3 class="text-lg font-semibold text-amber-800 mb-1">Become a Premium Member</h3>
+          <p class="text-amber-700 mb-4">Download videos, upload your own ICE footage, and support independent journalism for just <strong>{{ subscription_price }} EUR/month</strong>.</p>
+          <stripe-buy-button
+            buy-button-id="buy_btn_1Sxcv0C7nxdY2uAUK5e7Xnci"
+            publishable-key="pk_live_51R5IM8C7nxdY2uAU7WJGnndI0qge0jqfQ7BIN8TfGMA2NP1o9IHYbTLNBpY0I4lE3zWV0pXTDeDQAIihQwbkDnzK00Mh99IAOd"
+          ></stripe-buy-button>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- Upload Form (Visible to all, but requires premium) -->
+    <div class="bg-white rounded-xl shadow-sm border border-slate-200/60 p-6 mb-8">
+      <div class="flex items-start justify-between gap-4 mb-4">
+        <div>
+          <h3 class="text-lg font-semibold text-slate-800 flex items-center gap-2">
+            <svg class="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+            </svg>
+            Submit ICE Footage
+          </h3>
+          <p class="text-sm text-slate-500 mt-1">Share URLs from X, YouTube, TikTok, or Instagram</p>
+        </div>
+        {% if not is_premium %}
+        <span class="inline-flex items-center gap-1.5 text-xs font-semibold text-amber-600 bg-amber-100 px-3 py-1.5 rounded-full shrink-0">
+          <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
+            <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
+          </svg>
+          Premium Only
+        </span>
+        {% endif %}
+      </div>
+      
+      {% if is_premium %}
+      <!-- Tabs: URL or File upload -->
+      <div class="flex gap-2 mb-4 border-b border-slate-200">
+        <button
+          type="button"
+          @click="uploadMode = 'url'"
+          class="px-4 py-2 text-sm font-medium rounded-t-lg transition"
+          :class="uploadMode === 'url' ? 'bg-indigo-100 text-indigo-700 border border-b-0 border-slate-200' : 'text-slate-600 hover:bg-slate-100'"
+        >
+          Paste URL
+        </button>
+        <button
+          type="button"
+          @click="uploadMode = 'file'"
+          class="px-4 py-2 text-sm font-medium rounded-t-lg transition"
+          :class="uploadMode === 'file' ? 'bg-indigo-100 text-indigo-700 border border-b-0 border-slate-200' : 'text-slate-600 hover:bg-slate-100'"
+        >
+          Drag & drop files
+        </button>
+      </div>
+
+      <!-- URL submit -->
+      <form x-show="uploadMode === 'url'" @submit.prevent="submitUrl" class="space-y-4">
+        <div>
+          <input
+            type="url"
+            x-model="submitForm.url"
+            placeholder="Paste URL from X, YouTube, TikTok, or Instagram..."
+            class="w-full px-4 py-3 rounded-lg border border-slate-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition"
+            :disabled="submitForm.loading"
+          >
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <input
+            type="text"
+            x-model="submitForm.title"
+            placeholder="Title (optional)"
+            maxlength="200"
+            class="w-full px-4 py-3 rounded-lg border border-slate-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition"
+            :disabled="submitForm.loading"
+          >
+          <textarea
+            x-model="submitForm.links"
+            placeholder="Links (one per line, optional)"
+            rows="2"
+            class="w-full px-4 py-3 rounded-lg border border-slate-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition"
+            :disabled="submitForm.loading"
+          ></textarea>
+        </div>
+        <textarea
+          x-model="submitForm.description"
+          placeholder="Description (optional)"
+          rows="2"
+          maxlength="2000"
+          class="w-full px-4 py-3 rounded-lg border border-slate-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition"
+          :disabled="submitForm.loading"
+        ></textarea>
+        <div class="flex items-center gap-4">
+          <button
+            type="submit"
+            class="px-6 py-3 bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 transition flex items-center justify-center gap-2"
+            :class="{ 'opacity-50 cursor-wait': submitForm.loading }"
+            :disabled="submitForm.loading"
+          >
+            <span x-show="!submitForm.loading">Download from URL & add to gallery</span>
+            <span x-show="submitForm.loading" class="flex items-center gap-2">
+              <svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+              </svg>
+              Downloading...
+            </span>
+          </button>
+        </div>
+      </form>
+
+      <!-- File upload (drag-and-drop) -->
+      <form x-show="uploadMode === 'file'" @submit.prevent="submitFiles" class="space-y-4">
+        <div
+          class="border-2 border-dashed rounded-xl p-8 text-center transition"
+          :class="fileDropActive ? 'border-indigo-500 bg-indigo-50' : 'border-slate-300 bg-slate-50 hover:border-slate-400'"
+          @dragover.prevent="fileDropActive = true"
+          @dragleave.prevent="fileDropActive = false"
+          @drop.prevent="onFileDrop($event)"
+        >
+          <input
+            type="file"
+            multiple
+            accept=".jpg,.jpeg,.png,.gif,.webp,.mp4,.mov,.webm,.mkv,.avi"
+            class="hidden"
+            id="file-upload-input"
+            @change="onFileSelect($event)"
+          >
+          <label for="file-upload-input" class="cursor-pointer block">
+            <svg class="w-12 h-12 mx-auto text-slate-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+            </svg>
+            <p class="text-slate-600 font-medium">Drop files here or click to choose</p>
+            <p class="text-slate-500 text-sm mt-1">Images and video (jpg, png, mp4, webm, etc.) · max 100 MB each</p>
+          </label>
+          <div x-show="submitForm.files.length > 0" class="mt-4 flex flex-wrap gap-2 justify-center">
+            <template x-for="(f, i) in submitForm.files" :key="i">
+              <span class="px-3 py-1 bg-slate-200 rounded-full text-sm" x-text="f.name"></span>
+            </template>
+          </div>
+        </div>
+        <input
+          type="text"
+          x-model="submitForm.title"
+          placeholder="Title (optional)"
+          maxlength="200"
+          class="w-full px-4 py-3 rounded-lg border border-slate-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition"
+          :disabled="submitForm.loading"
+        >
+        <textarea
+          x-model="submitForm.links"
+          placeholder="Links (one per line, optional)"
+          rows="2"
+          class="w-full px-4 py-3 rounded-lg border border-slate-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition"
+          :disabled="submitForm.loading"
+        ></textarea>
+        <textarea
+          x-model="submitForm.description"
+          placeholder="Description (optional)"
+          rows="2"
+          maxlength="2000"
+          class="w-full px-4 py-3 rounded-lg border border-slate-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition"
+          :disabled="submitForm.loading"
+        ></textarea>
+        <div class="flex items-center gap-4">
+          <button
+            type="submit"
+            class="px-6 py-3 bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 transition flex items-center justify-center gap-2"
+            :class="{ 'opacity-50 cursor-wait': submitForm.loading }"
+            :disabled="submitForm.loading || submitForm.files.length === 0"
+          >
+            <span x-show="!submitForm.loading">Add to gallery</span>
+            <span x-show="submitForm.loading" class="flex items-center gap-2">
+              <svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+              </svg>
+              Uploading...
+            </span>
+          </button>
+        </div>
+      </form>
+
+      <div x-show="submitForm.message" x-transition class="mt-4">
+        <p :class="submitForm.success ? 'text-green-600' : 'text-red-600'" x-text="submitForm.message"></p>
+      </div>
+      {% else %}
+      <!-- Non-premium upload CTA -->
+      <div class="bg-gradient-to-r from-rose-50 to-orange-50 border border-rose-200 rounded-xl p-5">
+        <div class="flex flex-col sm:flex-row items-center gap-4">
+          <div class="flex-1 text-center sm:text-left">
+            <p class="text-rose-800 font-semibold mb-1">Upgrade to submit footage and downloads</p>
+            <p class="text-rose-700 text-sm">Premium members can upload ICE-related content to the community gallery.</p>
+          </div>
+          <stripe-buy-button
+            buy-button-id="buy_btn_1Sxcv0C7nxdY2uAUK5e7Xnci"
+            publishable-key="pk_live_51R5IM8C7nxdY2uAU7WJGnndI0qge0jqfQ7BIN8TfGMA2NP1o9IHYbTLNBpY0I4lE3zWV0pXTDeDQAIihQwbkDnzK00Mh99IAOd"
+          ></stripe-buy-button>
+        </div>
+      </div>
+      {% endif %}
+    </div>
+
+    <!-- Filter Bar -->
+    <div class="bg-white rounded-xl shadow-sm border border-slate-200/60 p-4 mb-6">
+      <div class="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+        <h3 class="text-lg font-semibold text-slate-800">
+          Recent Downloads
+          <span class="text-sm font-normal text-slate-400" x-text="'(' + downloads.length + ' showing)'"></span>
+        </h3>
+        <div class="flex items-center gap-3">
+          <label class="text-sm text-slate-600">Platform:</label>
+          <select
+            x-model="platform"
+            @change="fetchDownloads()"
+            class="px-3 py-2 rounded-lg border border-slate-300 bg-slate-50 text-sm font-medium text-slate-700 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
+          >
+            <option value="">All Platforms</option>
+            <option value="x">X / Twitter</option>
+            <option value="youtube">YouTube</option>
+            <option value="tiktok">TikTok</option>
+            <option value="upload">Uploads</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <!-- Downloads Grid -->
+    <template x-if="!loading && downloads.length > 0">
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        <template x-for="download in downloads" :key="download.id">
+          <div class="bg-white rounded-xl shadow-sm border border-slate-200/60 overflow-hidden hover:shadow-md transition-shadow">
+            <!-- Thumbnail / Preview (view_url for uploads, thumbnail_url for others) -->
+            <div class="aspect-video bg-slate-100 flex items-center justify-center overflow-hidden">
+              <template x-if="download.view_url">
+                <a :href="download.view_url" target="_blank" rel="noopener noreferrer" class="w-full h-full flex items-center justify-center">
+                  <template x-if="(download.file_path || '').match(/\.(mp4|webm|mov|mkv|avi)$/i)">
+                    <video :src="download.view_url" class="w-full h-full object-cover" controls preload="metadata"></video>
+                  </template>
+                  <template x-if="!((download.file_path || '').match(/\.(mp4|webm|mov|mkv|avi)$/i))">
+                    <img :src="download.view_url" :alt="download.title || 'Download'" class="w-full h-full object-cover">
+                  </template>
+                </a>
+              </template>
+              <template x-if="!download.view_url && download.thumbnail_url">
+                <img :src="download.thumbnail_url" :alt="download.title || 'Download'" class="w-full h-full object-cover">
+              </template>
+              <template x-if="!download.view_url && !download.thumbnail_url">
+                <div class="text-slate-400">
+                  <svg class="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+                  </svg>
+                </div>
+              </template>
+            </div>
+            
+            <!-- Content -->
+            <div class="p-4">
+              <h4 class="font-semibold text-slate-800 truncate" x-text="download.title || 'Untitled Download'"></h4>
+              
+              <div class="mt-2 flex items-center gap-2 text-sm text-slate-500">
+                <!-- Platform Badge -->
+                <span
+                  class="px-2 py-0.5 rounded text-xs font-medium uppercase"
+                  :class="{
+                    'bg-blue-100 text-blue-700': download.platform === 'x',
+                    'bg-red-100 text-red-700': download.platform === 'youtube',
+                    'bg-pink-100 text-pink-700': download.platform === 'tiktok',
+                    'bg-emerald-100 text-emerald-700': download.platform === 'upload',
+                    'bg-slate-100 text-slate-600': !['x','youtube','tiktok','upload'].includes(download.platform)
+                  }"
+                  x-text="download.platform === 'upload' ? 'Upload' : (download.platform || 'unknown')"
+                ></span>
+                
+                <!-- User Submitted Badge -->
+                <template x-if="download.is_user_submitted">
+                  <span class="px-2 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-700">
+                    Community
+                  </span>
+                </template>
+              </div>
+              
+              <div class="mt-3 flex items-center justify-between text-sm">
+                <span class="text-slate-500">
+                  by <span class="font-medium" x-text="download.nickname || download.email?.split('@')[0] || 'Anonymous'"></span>
+                </span>
+                <span class="text-slate-400" x-text="formatDate(download.created_at)"></span>
+              </div>
+              
+              <a
+                :href="download.view_url || download.source_url"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="mt-3 inline-flex items-center gap-1 text-sm text-blue-600 hover:text-blue-800 transition"
+              >
+                <span x-text="download.view_url ? 'View / Download' : 'View Original'"></span>
+                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
+                </svg>
+              </a>
+            </div>
+          </div>
+        </template>
+      </div>
+    </template>
+
+    <!-- Loading State -->
+    <template x-if="loading">
+      <div class="flex items-center justify-center py-12">
+        <div class="flex items-center gap-3 text-slate-500">
+          <svg class="w-6 h-6 animate-spin" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+          </svg>
+          <span class="font-medium">Loading downloads...</span>
+        </div>
+      </div>
+    </template>
+
+    <!-- Empty State -->
+    <template x-if="!loading && downloads.length === 0">
+      <div class="bg-white rounded-xl shadow-sm border border-slate-200/60 p-12 text-center">
+        <div class="w-16 h-16 mx-auto mb-4 rounded-full bg-slate-100 flex items-center justify-center">
+          <svg class="w-8 h-8 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+          </svg>
+        </div>
+        <h3 class="text-lg font-semibold text-slate-800 mb-1">No downloads yet</h3>
+        <p class="text-slate-500">Be the first to contribute ICE footage to the gallery.</p>
+      </div>
+    </template>
+
+    <!-- Load More -->
+    <template x-if="!loading && hasMore">
+      <div class="mt-8 text-center">
+        <button
+          @click="loadMore()"
+          class="px-6 py-3 bg-slate-800 text-white font-medium rounded-lg hover:bg-slate-700 transition"
+          :disabled="loadingMore"
+        >
+          <span x-show="!loadingMore">Load More</span>
+          <span x-show="loadingMore">Loading...</span>
+        </button>
+      </div>
+    </template>
+  </main>
+
+  <!-- Footer -->
+  <footer class="mt-12 border-t border-slate-200 bg-white">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 py-6 text-center text-sm text-slate-500">
+      <p>ICENews Social Monitoring System</p>
+      <p class="mt-2">
+        <a href="/privacy" class="text-indigo-600 hover:underline">Privacy</a>
+        ·
+        <a href="/terms" class="text-indigo-600 hover:underline">Terms</a>
+      </p>
+    </div>
+  </footer>
+
+  <!-- Toast notification -->
+  <div 
+    x-show="toast.show" 
+    x-transition
+    class="fixed bottom-6 right-6 bg-slate-800 text-white px-4 py-3 rounded-lg shadow-lg text-sm"
+    x-text="toast.message"
+  ></div>
+
+  <script>
+    function downloadsPage() {
+      return {
+        downloads: {{ downloads | tojson | safe }},
+        total: {{ total_downloads }},
+        platform: '',
+        loading: false,
+        loadingMore: false,
+        offset: 50,
+        toast: { show: false, message: '' },
+        uploadMode: 'url',
+        fileDropActive: false,
+        submitForm: {
+          url: '',
+          title: '',
+          description: '',
+          links: '',
+          files: [],
+          loading: false,
+          success: false,
+          message: ''
+        },
+
+        get hasMore() {
+          return this.downloads.length < this.total;
+        },
+
+        async fetchDownloads() {
+          this.loading = true;
+          this.offset = 0;
+          try {
+            const params = new URLSearchParams({ limit: '50' });
+            if (this.platform) params.append('platform', this.platform);
+            
+            const response = await fetch(`/api/downloads?${params}`);
+            const data = await response.json();
+            this.downloads = data.downloads;
+            this.total = data.total;
+            this.offset = 50;
+          } catch (e) {
+            this.showToast('Failed to load downloads');
+          } finally {
+            this.loading = false;
+          }
+        },
+
+        async loadMore() {
+          this.loadingMore = true;
+          try {
+            const params = new URLSearchParams({ 
+              limit: '50',
+              offset: String(this.offset)
+            });
+            if (this.platform) params.append('platform', this.platform);
+            
+            const response = await fetch(`/api/downloads?${params}`);
+            const data = await response.json();
+            this.downloads = [...this.downloads, ...data.downloads];
+            this.offset += 50;
+          } catch (e) {
+            this.showToast('Failed to load more');
+          } finally {
+            this.loadingMore = false;
+          }
+        },
+
+        onFileDrop(e) {
+          this.fileDropActive = false;
+          const dt = e.dataTransfer;
+          if (dt && dt.files && dt.files.length) {
+            this.submitForm.files = Array.from(dt.files);
+          }
+        },
+        onFileSelect(e) {
+          if (e.target.files && e.target.files.length) {
+            this.submitForm.files = Array.from(e.target.files);
+          }
+        },
+        async submitUrl() {
+          if (!this.submitForm.url.trim()) {
+            this.submitForm.message = 'Please enter a URL';
+            this.submitForm.success = false;
+            return;
+          }
+          this.submitForm.loading = true;
+          this.submitForm.message = '';
+          try {
+            const response = await fetch('/api/uploads/submit', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                url: this.submitForm.url,
+                title: this.submitForm.title,
+                description: this.submitForm.description,
+                links: this.submitForm.links
+              })
+            });
+            const data = await response.json();
+            if (response.ok) {
+              this.submitForm.success = true;
+              this.submitForm.message = 'Content added to gallery!';
+              this.submitForm.url = '';
+              this.submitForm.title = '';
+              this.submitForm.description = '';
+              this.submitForm.links = '';
+              await this.fetchDownloads();
+            } else {
+              this.submitForm.success = false;
+              this.submitForm.message = data.detail || 'Failed to process URL';
+            }
+          } catch (e) {
+            this.submitForm.success = false;
+            this.submitForm.message = 'Network error. Please try again.';
+          } finally {
+            this.submitForm.loading = false;
+          }
+        },
+        async submitFiles() {
+          if (this.submitForm.files.length === 0) {
+            this.submitForm.message = 'Please add at least one file';
+            this.submitForm.success = false;
+            return;
+          }
+          this.submitForm.loading = true;
+          this.submitForm.message = '';
+          try {
+            const formData = new FormData();
+            this.submitForm.files.forEach((f) => formData.append('files', f));
+            if (this.submitForm.title) formData.append('title', this.submitForm.title);
+            if (this.submitForm.description) formData.append('description', this.submitForm.description);
+            if (this.submitForm.links) formData.append('links', this.submitForm.links);
+            const response = await fetch('/api/uploads/file', {
+              method: 'POST',
+              body: formData
+            });
+            const data = await response.json();
+            if (response.ok) {
+              this.submitForm.success = true;
+              this.submitForm.message = data.message || 'Files added to gallery!';
+              this.submitForm.files = [];
+              this.submitForm.title = '';
+              this.submitForm.description = '';
+              this.submitForm.links = '';
+              document.getElementById('file-upload-input').value = '';
+              await this.fetchDownloads();
+            } else {
+              this.submitForm.success = false;
+              this.submitForm.message = data.detail || 'Upload failed';
+            }
+          } catch (e) {
+            this.submitForm.success = false;
+            this.submitForm.message = 'Network error. Please try again.';
+          } finally {
+            this.submitForm.loading = false;
+          }
+        },
+
+        formatDate(dateStr) {
+          if (!dateStr) return '';
+          const date = new Date(dateStr);
+          return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        },
+
+        showToast(message) {
+          this.toast.message = message;
+          this.toast.show = true;
+          setTimeout(() => { this.toast.show = false; }, 3000);
+        }
+      };
+    }
+  </script>
+</body>
+</html>
