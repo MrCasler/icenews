@@ -1,10 +1,9 @@
 """
 Content download utilities for social media posts.
-Supports X/Twitter, YouTube, TikTok with yt-dlp.
-Fallback for Twitter image-only: fetch page og:image or accept direct image URLs.
+Supports X/Twitter, YouTube, TikTok with yt-dlp (Python API; no CLI required).
+Fallback for Twitter image-only: fetch page og:image or thumbnail from extractor.
 """
 import re
-import subprocess
 import tempfile
 from pathlib import Path
 from typing import Optional
@@ -14,6 +13,13 @@ try:
     import requests
 except ImportError:
     requests = None
+
+try:
+    import yt_dlp
+    _YT_DLP_AVAILABLE = True
+except ImportError:
+    yt_dlp = None
+    _YT_DLP_AVAILABLE = False
 
 
 def _is_direct_image_url(url: str) -> bool:
@@ -67,7 +73,7 @@ def _fetch_twitter_og_image(tweet_url: str) -> Optional[str]:
         r = requests.get(
             tweet_url,
             timeout=10,
-            headers={"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"},
+            headers={"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"},
         )
         r.raise_for_status()
         html = r.text
@@ -124,103 +130,104 @@ def download_x_content(url: str, output_dir: Optional[Path] = None) -> tuple[boo
             return True, msg, path
         return False, f"Direct image download failed: {msg}", None
 
-    # Configure yt-dlp command for best compatibility
-    output_template = str(output_dir / '%(uploader)s_%(id)s.%(ext)s')
-    
-    # Don't use -f best: for image-only tweets yt-dlp fails with "No video could be found".
-    # Try with -f "all" first so image-only tweets can still yield thumbnails/images if the extractor provides them.
-    cmd = [
-        'yt-dlp',
-        '--no-check-certificate',
-        '--no-warnings',  # avoid surfacing WARNING (e.g. WSJ impersonation) as user-facing error
-        '--user-agent', 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
-        '--write-thumbnail',
-        '--convert-thumbnails', 'jpg',
-        '--no-playlist',
-        '--ignore-errors',  # don't abort so we can still get any written files
-        '-f', 'all',
-        '-o', output_template,
-        url
-    ]
-    
-    try:
-        result = subprocess.run(
-            cmd,
-            capture_output=True,
-            text=True,
-            timeout=120  # 2 minute timeout for larger files
-        )
-        
-        # Find the downloaded file(s) (ignore-errors may leave us with partial success)
-        downloaded_files = list(output_dir.glob('*'))
-        
-        if not downloaded_files:
-            error_msg = (result.stderr or result.stdout or "")
-            if is_twitter and ("No video could be found" in error_msg or "no video" in error_msg.lower()):
-                # Fallback: try to get og:image / twitter:image from the tweet page
-                og_url = _fetch_twitter_og_image(url)
-                if og_url:
-                    ok, msg, path = _download_direct_image(og_url, output_dir)
-                    if ok:
-                        return True, "Image downloaded (from tweet preview)", path
-                return False, "This post has images only; the downloader could not extract them. Try a post with video or paste a direct image link (right‑click image → Copy image address).", None
-            # Don't surface yt-dlp WARNING (e.g. WSJ impersonation) as the main error
-            if "WARNING" in error_msg or "impersonation" in error_msg.lower():
-                return False, "Unsupported URL or content. Try X, YouTube, TikTok, or Instagram.", None
-            return False, f"Download failed: {error_msg[:200]}" if error_msg else "Download failed", None
-        
-        # Prioritize video/media files over small thumbnails
-        media_files = []
-        thumbnail_files = []
-        
-        for file in downloaded_files:
-            try:
-                size = file.stat().st_size
-            except OSError:
-                continue
-            if file.suffix.lower() in ['.jpg', '.jpeg', '.webp', '.png', '.gif'] and size < 200000:
-                thumbnail_files.append(file)
-            else:
-                media_files.append(file)
-        
-        # Prefer largest media file; otherwise use any image/thumbnail
-        if media_files:
-            media_files.sort(key=lambda f: f.stat().st_size, reverse=True)
-            return True, "Download successful", media_files[0]
-        if thumbnail_files:
-            thumbnail_files.sort(key=lambda f: f.stat().st_size, reverse=True)
-            return True, "Image downloaded", thumbnail_files[0]
-        # Fallback: any file
-        downloaded_files.sort(key=lambda f: f.stat().st_size if f.exists() else 0, reverse=True)
-        return True, "Content downloaded", downloaded_files[0]
-        
-    except subprocess.TimeoutExpired:
-        return False, "Download timeout (2 minutes) - file may be too large", None
-    except subprocess.CalledProcessError as e:
-        error_msg = e.stderr if e.stderr else str(e)
-        if "No video could be found" in error_msg or "no video" in error_msg.lower():
-            return False, "This post has no downloadable video (images-only tweets may not be supported).", None
-        if "Unsupported URL" in error_msg or "Unsupported platform" in error_msg:
-            return False, "Platform not supported or URL is private", None
-        if "Video unavailable" in error_msg or "This video is unavailable" in error_msg:
-            return False, "Video unavailable or private", None
-        if "Sign in" in error_msg or "login" in error_msg.lower():
-            return False, "Content requires authentication (private account)", None
-        return False, f"Download failed: {error_msg[:200]}", None
-    except FileNotFoundError:
+    if not _YT_DLP_AVAILABLE or yt_dlp is None:
         return False, "yt-dlp not installed on server", None
+
+    output_template = str(output_dir / "%(uploader)s_%(id)s.%(ext)s")
+    ydl_opts = {
+        "outtmpl": output_template,
+        "noplaylist": True,
+        "quiet": True,
+        "no_warnings": True,
+        "ignoreerrors": False,
+        "format": "bestvideo+bestaudio/best/all",
+        "merge_output_format": None,
+        "http_headers": {"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"},
+        "writethumbnail": True,
+        "convertthumbnails": True,
+    }
+
+    try:
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            ydl.download([url])
     except Exception as e:
-        return False, f"Unexpected error: {str(e)}", None
+        error_msg = str(e)
+        if is_twitter and ("no video" in error_msg.lower() or "no video could be found" in error_msg.lower()):
+            # Try thumbnail from extractor (no download)
+            img_url = _twitter_image_from_extractor(url)
+            if not img_url:
+                img_url = _fetch_twitter_og_image(url)
+            if img_url:
+                ok, msg, path = _download_direct_image(img_url, output_dir)
+                if ok:
+                    return True, "Image downloaded (from tweet)", path
+            return False, "This post has images only; the downloader could not extract them. Try a post with video or paste a direct image link (right‑click image → Copy image address).", None
+        if "impersonation" in error_msg.lower() or "WARNING" in error_msg:
+            return False, "Unsupported URL or content. Try X, YouTube, TikTok, or Instagram.", None
+        return False, f"Download failed: {error_msg[:200]}", None
+
+    downloaded_files = list(output_dir.glob("*"))
+    if not downloaded_files:
+        if is_twitter:
+            img_url = _twitter_image_from_extractor(url) or _fetch_twitter_og_image(url)
+            if img_url:
+                ok, msg, path = _download_direct_image(img_url, output_dir)
+                if ok:
+                    return True, "Image downloaded (from tweet)", path
+        return False, "Download failed: no file produced", None
+
+    media_files = []
+    thumbnail_files = []
+    for file in downloaded_files:
+        try:
+            size = file.stat().st_size
+        except OSError:
+            continue
+        if file.suffix.lower() in (".jpg", ".jpeg", ".webp", ".png", ".gif") and size < 200000:
+            thumbnail_files.append(file)
+        else:
+            media_files.append(file)
+
+    if media_files:
+        media_files.sort(key=lambda f: f.stat().st_size, reverse=True)
+        return True, "Download successful", media_files[0]
+    if thumbnail_files:
+        thumbnail_files.sort(key=lambda f: f.stat().st_size, reverse=True)
+        return True, "Image downloaded", thumbnail_files[0]
+    downloaded_files.sort(key=lambda f: f.stat().st_size if f.exists() else 0, reverse=True)
+    return True, "Content downloaded", downloaded_files[0]
+
+
+def _twitter_image_from_extractor(tweet_url: str) -> Optional[str]:
+    """Use yt-dlp extract_info(download=False) to get thumbnail URL for image-only tweets."""
+    if not _YT_DLP_AVAILABLE or yt_dlp is None:
+        return None
+    try:
+        opts = {
+            "quiet": True,
+            "no_warnings": True,
+            "extract_flat": False,
+            "skip_download": True,
+            "http_headers": {"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"},
+        }
+        with yt_dlp.YoutubeDL(opts) as ydl:
+            info = ydl.extract_info(tweet_url, download=False)
+        if not info:
+            return None
+        # Prefer thumbnail (often best quality for image-only)
+        url = info.get("thumbnail")
+        if not url and info.get("thumbnails"):
+            url = info["thumbnails"][-1].get("url") if isinstance(info["thumbnails"][-1], dict) else None
+        if url:
+            return url
+        # Some extractors put image in url when it's a single image
+        if info.get("url") and _is_direct_image_url(info["url"]):
+            return info["url"]
+        return None
+    except Exception:
+        return None
 
 
 def check_yt_dlp_available() -> bool:
-    """Check if yt-dlp is installed and available."""
-    try:
-        result = subprocess.run(
-            ['yt-dlp', '--version'],
-            capture_output=True,
-            timeout=5
-        )
-        return result.returncode == 0
-    except (FileNotFoundError, subprocess.TimeoutExpired):
-        return False
+    """Check if yt-dlp is available (Python package; no CLI required)."""
+    return _YT_DLP_AVAILABLE
