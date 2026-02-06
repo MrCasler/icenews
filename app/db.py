@@ -45,6 +45,19 @@ def _clamp_int(value: int, *, minimum: int, maximum: int) -> int:
     return value
 
 
+def _ensure_post_likes_has_dislike_count_on_conn(conn: sqlite3.Connection) -> None:
+    """Ensure post_likes.dislike_count exists on this connection. Run before any query that uses l.dislike_count."""
+    cur = conn.cursor()
+    cur.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='post_likes'")
+    if cur.fetchone() is None:
+        return
+    cur.execute("PRAGMA table_info(post_likes)")
+    columns = [row[1] for row in cur.fetchall()]
+    if "dislike_count" not in columns:
+        cur.execute("ALTER TABLE post_likes ADD COLUMN dislike_count INTEGER NOT NULL DEFAULT 0")
+        conn.commit()
+
+
 def get_connection():
     """Return a connection to the SQLite database."""
     # #region agent log
@@ -75,14 +88,6 @@ def init_db() -> None:
     Creates all required tables if they don't exist.
     Safe to run multiple times (uses CREATE TABLE IF NOT EXISTS).
     """
-    # #region agent log
-    import json, time, os
-    try:
-        with open('/Users/casler/Desktop/casler biz/personal projects/icenews/.cursor/debug.log', 'a') as f:
-            f.write(json.dumps({"location":"db.py:init_db:entry","message":"Starting DB init","data":{"db_path":str(DB_PATH),"is_render":bool(os.getenv("RENDER")),"parent_exists":DB_PATH.parent.exists() if hasattr(DB_PATH.parent, 'exists') else False},"timestamp":int(time.time()*1000),"sessionId":"debug-session","hypothesisId":"H1,H5"}) + '\n')
-    except: pass
-    # #endregion
-    
     conn = get_connection()
     cur = conn.cursor()
     
@@ -144,12 +149,13 @@ def init_db() -> None:
         );
         """
     )
-    # Migration: add dislike_count to existing DBs that don't have it
-    try:
+    conn.commit()
+    # Migration: add dislike_count to existing DBs that don't have it (e.g. Render DB created before this column)
+    cur.execute("PRAGMA table_info(post_likes)")
+    columns = [row[1] for row in cur.fetchall()]
+    if "dislike_count" not in columns:
         cur.execute("ALTER TABLE post_likes ADD COLUMN dislike_count INTEGER NOT NULL DEFAULT 0")
         conn.commit()
-    except sqlite3.OperationalError:
-        pass  # Column already exists
     
     # Create premium_users table (for paywall access - legacy, kept for compatibility)
     cur.execute(
@@ -281,12 +287,10 @@ def get_posts(
     platform: str = "x",
 ):
     """Fetch posts with optional filters. Returns list of dicts."""
-    # Hard bounds (mirror the API). If you later add roles, you can widen these
-    # for admins only — but keep *some* cap to prevent misuse.
     limit = _clamp_int(int(limit), minimum=1, maximum=100)
     offset = _clamp_int(int(offset), minimum=0, maximum=10_000)
-
     conn = get_connection()
+    _ensure_post_likes_has_dislike_count_on_conn(conn)
     cur = conn.cursor()
     query = """
         SELECT p.id, p.platform, p.post_id, p.url, p.tagged_account_handle, p.tagged_hashtags,
@@ -316,6 +320,7 @@ def get_posts(
 def get_post_by_post_id(post_id: str):
     """Fetch a single post by platform post_id. Returns dict or None."""
     conn = get_connection()
+    _ensure_post_likes_has_dislike_count_on_conn(conn)
     cur = conn.cursor()
     cur.execute(
         """

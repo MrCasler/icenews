@@ -105,7 +105,7 @@
         </span>
         {% endif %}
         
-        {% if user_email %}
+        {% if is_authenticated and user_email %}
         <div class="flex items-center gap-3 ml-2">
           <a href="/profile" class="text-sm text-slate-300 hover:text-white transition flex items-center gap-1.5">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -136,7 +136,7 @@
           </svg>
         </span>
         {% endif %}
-        {% if not user_email %}
+        {% if not is_authenticated or not user_email %}
         <a href="/auth/login" class="px-3 py-1.5 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition">
           Sign In
         </a>
@@ -151,7 +151,7 @@
         <a href="/downloads" class="block px-4 py-2 rounded-lg text-slate-300 hover:bg-slate-800 hover:text-white transition">Downloads</a>
         <a href="/why" class="block px-4 py-2 rounded-lg text-slate-300 hover:bg-slate-800 hover:text-white transition">Why This Matters</a>
         <div class="border-t border-slate-800 my-2"></div>
-        {% if user_email %}
+        {% if is_authenticated and user_email %}
         <a href="/profile" class="block px-4 py-2 rounded-lg text-slate-300 hover:bg-slate-800 hover:text-white transition">Profile</a>
         <a href="/auth/logout" class="block px-4 py-2 rounded-lg text-slate-400 hover:bg-slate-800 hover:text-white transition">Logout</a>
         {% else %}

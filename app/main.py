@@ -295,7 +295,8 @@ async def home(request: Request, auth_info: dict = Depends(verify_auth)):
             "posts_json": posts_json,
             "total_posts": total,
             "accounts": accounts,
-            # User auth and premium status
+            # User auth and premium status (is_authenticated so nav shows Sign In vs Profile/Logout correctly on Render)
+            "is_authenticated": auth_info.get("authenticated", False),
             "is_premium": auth_info.get("is_premium", False),
             "user_email": auth_info.get("email"),
             # Umami analytics (empty string = disabled in template)
@@ -737,12 +738,14 @@ async def verify_magic_link_route(token: str, request: Request):
 
 @app.get("/auth/logout")
 async def logout():
-    """Clear session and redirect to home. Cookie options must match set_cookie for browser to clear it (e.g. on Render with HTTPS)."""
+    """Clear session and redirect to home. Cookie options must match set_cookie so the browser clears it (e.g. on Render use same domain)."""
     response = RedirectResponse(url="/", status_code=302)
+    # Use None for domain when unset so the cookie is cleared for the current host (important on Render if COOKIE_DOMAIN is empty)
+    cookie_domain = (COOKIE_DOMAIN or "").strip() or None
     response.delete_cookie(
         SESSION_COOKIE_NAME,
         path="/",
-        domain=COOKIE_DOMAIN,
+        domain=cookie_domain,
         secure=os.getenv("RENDER") is not None,
         httponly=True,
         samesite="lax",
